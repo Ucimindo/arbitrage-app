@@ -370,6 +370,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Generate simulated transaction hash
+      const txHash = `0x${Math.random().toString(16).substring(2, 18)}${Date.now().toString(16)}`;
+
       const logData = {
         tokenPair,
         priceA: priceA.toFixed(8),
@@ -377,12 +380,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         spread: spread.toFixed(8),
         estimatedProfit: estimatedProfit.toFixed(8),
         executed: true,
-        executionType
+        executionType,
+        walletA: 'PancakeSwap',
+        walletB: 'QuickSwap',
+        buyPrice: priceA.toFixed(8),
+        sellPrice: priceB.toFixed(8),
+        profit: estimatedProfit.toFixed(8),
+        txHash
       };
-
-      // Generate transaction IDs for simulation
-      const txA = `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 8)}`;
-      const txB = `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 8)}`;
 
       const log = await storage.insertArbitrageLog(logData);
       

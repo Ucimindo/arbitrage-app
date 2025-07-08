@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatDistanceToNow } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDistanceToNow, format } from "date-fns";
 import { tokenOptions } from "./token-selector";
+import TransactionHistoryModal from "./transaction-history-modal";
 
 interface ArbitrageLogEntry {
   id: number;
@@ -13,6 +17,12 @@ interface ArbitrageLogEntry {
   estimatedProfit: string;
   executed: boolean;
   executionType?: string;
+  walletA?: string;
+  walletB?: string;
+  buyPrice?: string;
+  sellPrice?: string;
+  profit?: string;
+  txHash?: string;
   executedAt: string;
 }
 
@@ -21,6 +31,8 @@ interface TransactionLogProps {
 }
 
 export default function TransactionLog({ tokenPair }: TransactionLogProps) {
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  
   const { data: history, isLoading } = useQuery<ArbitrageLogEntry[]>({
     queryKey: ["/api/arbitrage/history", tokenPair],
     queryFn: async () => {
@@ -85,10 +97,16 @@ export default function TransactionLog({ tokenPair }: TransactionLogProps) {
           <div className="text-muted-foreground">No transactions yet</div>
         )}
         
-        <Button variant="outline" className="w-full mt-4">
+        <Button variant="outline" className="w-full mt-4" onClick={() => setIsHistoryModalOpen(true)}>
           View All Transactions
         </Button>
       </CardContent>
+      
+      <TransactionHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        tokenPair={tokenPair}
+      />
     </Card>
   );
 }

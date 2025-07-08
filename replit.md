@@ -149,6 +149,14 @@ Preferred communication style: Simple, everyday language.
   - Fresh settings loaded from backend on each scanner start for consistency
   - Yellow alert banner shows when scanner is running: "Changes will take effect after scanner restart"
   - Prevents partial configuration updates during active scanning sessions
+- **July 08, 2025**: Implemented comprehensive transaction enhancements and UI upgrades
+  - **Enhanced Transaction View**: Replaced minimal log with detailed table showing token pair, execution type ([auto] badges), wallet details, buy/sell prices, profit amounts, simulated TX hashes, and timestamps
+  - **Full Transaction History Modal**: Added "View All Transactions" modal with complete history, pagination support, and comprehensive transaction details
+  - **Scanner Session Parameters**: Added configurable scanner interval (1-60 sec), session duration (60-3600 sec), and max executions per session settings
+  - **Profit Threshold Mode Toggle**: Implemented switch between fixed USDT amounts and percentage-based thresholds with real-time profit calculator
+  - **Enhanced Auto Execution Logging**: Extended database schema with walletA, walletB, buyPrice, sellPrice, profit, and txHash fields for complete transaction audit trail
+  - **Dynamic Scan Interval Display**: Scanner now shows "Next scan in X seconds" using actual configured interval from settings
+  - **Complete Database Migration**: Updated arbitrage_log table with new transaction tracking fields while maintaining backward compatibility
 
 ## Manual Scan Mode Features
 

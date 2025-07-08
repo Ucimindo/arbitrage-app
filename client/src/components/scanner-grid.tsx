@@ -210,6 +210,11 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
                   Last scan: {lastScanTime.toLocaleTimeString()}
                 </span>
               )}
+              {isScanning && (
+                <span className="text-sm text-muted-foreground">
+                  Next scan in {settings?.scannerIntervalSec || '5'} seconds
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center space-x-2">

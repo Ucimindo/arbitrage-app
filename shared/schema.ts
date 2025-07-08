@@ -21,6 +21,12 @@ export const arbitrageLog = pgTable("arbitrage_log", {
   estimatedProfit: numeric("estimated_profit", { precision: 18, scale: 8 }).notNull(),
   executed: boolean("executed").default(false).notNull(),
   executionType: text("execution_type").default("manual").notNull(), // 'auto' or 'manual'
+  walletA: text("wallet_a").default('PancakeSwap'), // 'PancakeSwap'
+  walletB: text("wallet_b").default('QuickSwap'), // 'QuickSwap'
+  buyPrice: numeric("buy_price", { precision: 18, scale: 8 }).default('0'),
+  sellPrice: numeric("sell_price", { precision: 18, scale: 8 }).default('0'),
+  profit: numeric("profit", { precision: 18, scale: 8 }).default('0'),
+  txHash: text("tx_hash").default(''), // simulated transaction hash
   executedAt: timestamp("executed_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
