@@ -114,6 +114,11 @@ Preferred communication style: Simple, everyday language.
   - Added token-aware display logic: btc_usdt → "USDT", eth_usdt → "USDT"
   - Enhanced scanner grid and detail panel with quote symbol extraction
   - Future-proofed for additional quote tokens (BUSD, DAI, etc.)
+- **July 08, 2025**: Unified settings into modal interface
+  - Converted inline SettingsPanel to modal dialog accessible from navbar
+  - Added comprehensive trading settings: profit thresholds, slippage, automation
+  - Improved UX with single settings access point via ⚙️ button
+  - Removed redundant settings card from dashboard layout
 
 ## Manual Scan Mode Features
 

@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Settings } from "lucide-react";
 import { useArbitrage } from "@/hooks/use-arbitrage";
 
 interface NavbarProps {
   isConnected: boolean;
+  onOpenSettings: () => void;
 }
 
-export default function Navbar({ isConnected }: NavbarProps) {
+export default function Navbar({ isConnected, onOpenSettings }: NavbarProps) {
   const { refetchAll } = useArbitrage();
 
   return (
@@ -31,10 +33,16 @@ export default function Navbar({ isConnected }: NavbarProps) {
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={onOpenSettings}>
             <Settings className="w-4 h-4 mr-2" />
             Settings
           </Button>
+          
+          <Badge variant={isConnected ? "default" : "secondary"} className={`${
+            isConnected ? "bg-green-600 text-white" : "bg-red-600 text-white"
+          } px-3 py-1`}>
+            {isConnected ? "🟢 Connected" : "🔴 Disconnected"}
+          </Badge>
         </div>
       </div>
     </nav>
