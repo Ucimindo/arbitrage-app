@@ -8,6 +8,7 @@ import { RefreshCw, Play, Square } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { tokenOptions } from "./token-selector";
+import { cn } from "@/lib/utils";
 
 interface ScanResult {
   pair: string;
@@ -111,6 +112,11 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
   const bestSpread = scanResults.length > 0 
     ? Math.max(...scanResults.map(r => parseFloat(r.spread))) 
     : 0;
+  
+  // Find the most profitable opportunity
+  const mostProfitableAmount = scanResults.length > 0
+    ? Math.max(...scanResults.map(r => parseFloat(r.estimatedProfit)))
+    : 0;
 
   return (
     <Card className="bg-card border-border">
@@ -201,14 +207,24 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
                   const spread = parseFloat(result.spread);
                   const isProfitable = profit >= minProfitThreshold;
                   const isBestSpread = spread === bestSpread && spread > 0;
+                  const isMostProfitable = profit === mostProfitableAmount && profit > 0;
+                  const isSelected = selectedPair === result.pair;
                   
                   return (
                     <TableRow 
                       key={result.pair}
-                      className={`${selectedPair === result.pair ? 'bg-muted/50' : ''} ${
-                        isProfitable ? 'border-l-4 border-l-green-500' : ''
-                      } ${isBestSpread ? 'bg-yellow-50 dark:bg-yellow-900/20 font-semibold' : ''} 
-                      transition-colors duration-300`}
+                      className={cn(
+                        "transition-all duration-300",
+                        isSelected && isMostProfitable
+                          ? "border-l-4 border-yellow-400 bg-muted/70"
+                          : isSelected
+                          ? "bg-muted/50"
+                          : isMostProfitable
+                          ? "border-l-4 border-orange-400 bg-orange-50/30 dark:bg-orange-900/10"
+                          : isProfitable
+                          ? "border-l-4 border-green-500"
+                          : ""
+                      )}
                     >
                       <TableCell className="font-medium">
                         <div className="flex items-center space-x-2">
@@ -218,17 +234,37 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
                       </TableCell>
                       <TableCell className="font-mono">${result.priceA}</TableCell>
                       <TableCell className="font-mono">${result.priceB}</TableCell>
-                      <TableCell className={`font-mono ${isBestSpread ? 'text-yellow-600 dark:text-yellow-400 font-bold' : ''}`}>
+                      <TableCell className={cn(
+                        "font-mono",
+                        isBestSpread && "text-yellow-600 dark:text-yellow-400 font-bold"
+                      )}>
                         ${result.spread}
                         {isBestSpread && <span className="ml-1">⭐</span>}
                       </TableCell>
-                      <TableCell className="font-mono text-green-600">${result.estimatedProfit}</TableCell>
+                      <TableCell className={cn(
+                        "font-mono text-green-600",
+                        isMostProfitable && "font-bold text-orange-600 dark:text-orange-400"
+                      )}>
+                        ${result.estimatedProfit}
+                        {isMostProfitable && <span className="ml-1">🔥</span>}
+                      </TableCell>
                       <TableCell>
                         <Badge 
-                          variant={isProfitable ? "default" : "secondary"}
-                          className={isProfitable ? "bg-green-600 text-white" : ""}
+                          variant={isMostProfitable ? "default" : isProfitable ? "default" : "secondary"}
+                          className={cn(
+                            isMostProfitable 
+                              ? "bg-orange-600 text-white font-bold" 
+                              : isProfitable 
+                              ? "bg-green-600 text-white" 
+                              : ""
+                          )}
                         >
-                          {isProfitable ? "PROFITABLE" : "NOT PROFITABLE"}
+                          {isMostProfitable 
+                            ? "🔥 BEST PROFIT" 
+                            : isProfitable 
+                            ? "PROFITABLE" 
+                            : "NOT PROFITABLE"
+                          }
                         </Badge>
                       </TableCell>
                       <TableCell>

@@ -115,7 +115,8 @@ Preferred communication style: Simple, everyday language.
 ### Scanner Grid
 - **Toggleable Scanner Mode**: Start/Stop scanner with 5-second interval scanning
 - **Real-time Status**: Shows "Running..." or "Stopped" with last scan timestamp
-- **Auto-highlighting**: Best spread marked with star and yellow background
+- **Smart Highlighting**: Best spread marked with star ⭐, most profitable marked with fire 🔥
+- **Improved Readability**: Clean border-based highlighting without background interference
 - **Manual Override**: Manual scan button available when scanner is stopped
 - Responsive table showing prices, spreads, estimated profits, and profitability status
 - Profitable opportunities highlighted with green indicators
