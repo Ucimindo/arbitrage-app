@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { insertPriceSchema, insertArbitrageLogSchema, insertSettingSchema } from "@shared/schema";
 import { z } from "zod";
+import { format } from "date-fns";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -522,6 +523,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Price update error:', error);
     }
   }, 5000); // Update every 5 seconds
+
+  // CSV Export endpoint
+  app.get("/api/arbitrage/export/csv", async (req, res) => {
+    try {
+      const logs = await storage.getArbitrageHistory('', 1000); // Get all logs, limit 1000
+      
+      const header = [
+        "ID",
+        "Token Pair",
+        "Execution Type",
+        "Buy Price",
+        "Sell Price",
+        "Profit",
+        "Wallet A", 
+        "Wallet B",
+        "TX Hash",
+        "Timestamp"
+      ];
+
+      const rows = logs.map(log => [
+        log.id,
+        log.tokenPair.toUpperCase(),
+        log.executionType || 'manual',
+        log.buyPrice || log.priceA,
+        log.sellPrice || log.priceB,
+        log.profit || log.estimatedProfit,
+        log.walletA || 'PancakeSwap',
+        log.walletB || 'QuickSwap',
+        log.txHash || '',
+        format(new Date(log.executedAt), "yyyy-MM-dd HH:mm:ss")
+      ]);
+
+      const csv = [header, ...rows].map(row => 
+        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+      ).join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=arbitrage_log.csv");
+      res.send(csv);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to export CSV' });
+    }
+  });
+
+  // JSON Export endpoint
+  app.get("/api/arbitrage/export/json", async (req, res) => {
+    try {
+      const logs = await storage.getArbitrageHistory('', 1000); // Get all logs, limit 1000
+      
+      const exportData = logs.map(log => ({
+        id: log.id,
+        tokenPair: log.tokenPair,
+        executionType: log.executionType || 'manual',
+        buyPrice: log.buyPrice || log.priceA,
+        sellPrice: log.sellPrice || log.priceB,
+        profit: log.profit || log.estimatedProfit,
+        walletA: log.walletA || 'PancakeSwap',
+        walletB: log.walletB || 'QuickSwap',
+        txHash: log.txHash || '',
+        timestamp: log.executedAt,
+        formattedTimestamp: format(new Date(log.executedAt), "yyyy-MM-dd HH:mm:ss")
+      }));
+
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", "attachment; filename=arbitrage_log.json");
+      res.json(exportData);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to export JSON' });
+    }
+  });
 
   return httpServer;
 }

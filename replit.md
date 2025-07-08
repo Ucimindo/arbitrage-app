@@ -158,6 +158,12 @@ Preferred communication style: Simple, everyday language.
   - **Dynamic Scan Interval Display**: Scanner now shows "Next scan in X seconds" using actual configured interval from settings
   - **Complete Database Migration**: Updated arbitrage_log table with new transaction tracking fields while maintaining backward compatibility
   - **Live Countdown Timer**: Real-time countdown showing exact remaining seconds until next scan with proper singular/plural handling
+- **July 08, 2025**: Implemented transaction log export functionality
+  - **CSV Export**: Download complete transaction history in Excel-compatible format
+  - **JSON Export**: Export structured data for debugging and system integration
+  - **Export Features**: Complete audit trail with ID, token pair, execution type, prices, profits, wallet details, TX hashes, and timestamps
+  - **Backend Endpoints**: `/api/arbitrage/export/csv` and `/api/arbitrage/export/json` with proper headers and file download handling
+  - **Frontend Integration**: Export buttons in transaction log component with download icons and direct file access
 
 ## Manual Scan Mode Features
 
@@ -192,3 +198,5 @@ Preferred communication style: Simple, everyday language.
 - `POST /api/arbitrage/execute`: Executes wallet-local buy/sell transactions
 - `GET /api/arbitrage/history?pair=xxx`: Transaction history per token pair
 - `GET /api/settings`: User configuration including profit thresholds
+- `GET /api/arbitrage/export/csv`: Download all transaction logs as CSV file
+- `GET /api/arbitrage/export/json`: Download all transaction logs as JSON file

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDistanceToNow, format } from "date-fns";
+import { Download, FileText, Database } from "lucide-react";
 import { tokenOptions } from "./token-selector";
 import TransactionHistoryModal from "./transaction-history-modal";
 
@@ -97,9 +98,32 @@ export default function TransactionLog({ tokenPair }: TransactionLogProps) {
           <div className="text-muted-foreground">No transactions yet</div>
         )}
         
-        <Button variant="outline" className="w-full mt-4" onClick={() => setIsHistoryModalOpen(true)}>
-          View All Transactions
-        </Button>
+        <div className="mt-4 space-y-2">
+          <Button variant="outline" className="w-full" onClick={() => setIsHistoryModalOpen(true)}>
+            View All Transactions
+          </Button>
+          
+          <div className="flex gap-2 justify-end">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.open("/api/arbitrage/export/csv", "_blank")}
+              className="flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              Export CSV
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.open("/api/arbitrage/export/json", "_blank")}
+              className="flex items-center gap-2"
+            >
+              <Database className="w-4 h-4" />
+              Export JSON
+            </Button>
+          </div>
+        </div>
       </CardContent>
       
       <TransactionHistoryModal

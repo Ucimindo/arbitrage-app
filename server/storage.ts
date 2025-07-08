@@ -31,7 +31,7 @@ export interface IStorage {
   
   // Arbitrage methods
   insertArbitrageLog(log: InsertArbitrageLog): Promise<ArbitrageLog>;
-  getArbitrageHistory(tokenPair: string, limit?: number): Promise<ArbitrageLog[]>;
+  getArbitrageHistory(tokenPair?: string, limit?: number): Promise<ArbitrageLog[]>;
   
   // Wallet methods
   getWallets(tokenPair?: string): Promise<Wallet[]>;
@@ -100,13 +100,19 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getArbitrageHistory(tokenPair: string, limit = 20): Promise<ArbitrageLog[]> {
-    return await db
+  async getArbitrageHistory(tokenPair?: string, limit = 20): Promise<ArbitrageLog[]> {
+    let query = db
       .select()
-      .from(arbitrageLog)
-      .where(eq(arbitrageLog.tokenPair, tokenPair))
+      .from(arbitrageLog);
+    
+    if (tokenPair && tokenPair.trim() !== '') {
+      query = query.where(eq(arbitrageLog.tokenPair, tokenPair));
+    }
+    
+    const logs = await query
       .orderBy(desc(arbitrageLog.executedAt))
       .limit(limit);
+    return logs;
   }
 
   async getWallets(tokenPair?: string): Promise<Wallet[]> {
