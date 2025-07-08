@@ -113,7 +113,10 @@ Preferred communication style: Simple, everyday language.
 ## Manual Scan Mode Features
 
 ### Scanner Grid
-- Manual scan button for all 5 token pairs (BTC/USDT, ETH/USDT, CAKE/USDT, LINK/USDT, WBNB/USDT)
+- **Toggleable Scanner Mode**: Start/Stop scanner with 5-second interval scanning
+- **Real-time Status**: Shows "Running..." or "Stopped" with last scan timestamp
+- **Auto-highlighting**: Best spread marked with star and yellow background
+- **Manual Override**: Manual scan button available when scanner is stopped
 - Responsive table showing prices, spreads, estimated profits, and profitability status
 - Profitable opportunities highlighted with green indicators
 - Select button enabled only for profitable pairs
