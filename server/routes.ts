@@ -61,6 +61,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.setSetting('maxPositionSize', '1000');
       await storage.setSetting('autoExecute', 'true');
       await storage.setSetting('soundAlerts', 'false');
+      
+      // Auto execution settings
+      await storage.setSetting('scannerIntervalSec', '5');
+      await storage.setSetting('sessionDurationSec', '600');
+      await storage.setSetting('autoExecMaxPerSession', '5');
 
       res.json({ success: true });
     } catch (error) {
@@ -322,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Execute arbitrage
   app.post('/api/arbitrage/execute', async (req, res) => {
     try {
-      const { tokenPair = 'btc_usdt' } = req.body;
+      const { tokenPair = 'btc_usdt', executionType = 'manual' } = req.body;
       const quoteSymbol = getQuoteSymbol(tokenPair);
       const baseToken = tokenPair.split("_")[0];
       const pancakePrices = await storage.getPricesByDex('pancake', tokenPair);
@@ -371,7 +376,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priceB: priceB.toFixed(8),
         spread: spread.toFixed(8),
         estimatedProfit: estimatedProfit.toFixed(8),
-        executed: true
+        executed: true,
+        executionType
       };
 
       // Generate transaction IDs for simulation

@@ -20,6 +20,7 @@ export const arbitrageLog = pgTable("arbitrage_log", {
   spread: numeric("spread", { precision: 18, scale: 8 }).notNull(),
   estimatedProfit: numeric("estimated_profit", { precision: 18, scale: 8 }).notNull(),
   executed: boolean("executed").default(false).notNull(),
+  executionType: text("execution_type").default("manual").notNull(), // 'auto' or 'manual'
   executedAt: timestamp("executed_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

@@ -136,6 +136,13 @@ Preferred communication style: Simple, everyday language.
   - Real-time profit calculations showing raw threshold + gas fees
   - Updated backend logic to use new threshold mode for all arbitrage decisions
   - Visual profit calculator in settings modal with net profit requirements
+- **July 08, 2025**: Implemented auto execution system with session controls
+  - Added execution_type column to arbitrage_log table (auto/manual)
+  - Built session-based limiting with configurable duration and max trades
+  - Added auto execution controls in settings: interval, session duration, max executions
+  - Scanner automatically executes profitable opportunities when enabled
+  - Transaction log shows [auto] tag for automated executions
+  - Session protection prevents runaway auto execution loops
 
 ## Manual Scan Mode Features
 

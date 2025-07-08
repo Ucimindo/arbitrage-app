@@ -12,6 +12,7 @@ interface ArbitrageLogEntry {
   spread: string;
   estimatedProfit: string;
   executed: boolean;
+  executionType?: string;
   executedAt: string;
 }
 
@@ -63,6 +64,7 @@ export default function TransactionLog({ tokenPair }: TransactionLogProps) {
                 <div>
                   <div className="text-sm text-muted-foreground">
                     {entry.executed ? 'Arbitrage Executed' : 'Opportunity Missed'}
+                    {entry.executionType === "auto" && <span className="text-yellow-500 ml-1">[auto]</span>}
                   </div>
                   <div className="text-foreground font-mono">{tokenLabel}</div>
                 </div>

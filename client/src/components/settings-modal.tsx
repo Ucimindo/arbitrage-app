@@ -23,6 +23,9 @@ interface Settings {
   maxPositionSize: string;
   autoExecute: string;
   soundAlerts: string;
+  scannerIntervalSec: string;
+  sessionDurationSec: string;
+  autoExecMaxPerSession: string;
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
@@ -41,6 +44,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     maxPositionSize: "",
     autoExecute: "",
     soundAlerts: "",
+    scannerIntervalSec: "",
+    sessionDurationSec: "",
+    autoExecMaxPerSession: "",
   });
 
   // Update form when settings load
@@ -54,6 +60,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         maxPositionSize: settings.maxPositionSize || "1000",
         autoExecute: settings.autoExecute || "false",
         soundAlerts: settings.soundAlerts || "false",
+        scannerIntervalSec: settings.scannerIntervalSec || "5",
+        sessionDurationSec: settings.sessionDurationSec || "600",
+        autoExecMaxPerSession: settings.autoExecMaxPerSession || "5",
       });
     }
   });
@@ -68,6 +77,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       maxPositionSize: settings.maxPositionSize || "1000",
       autoExecute: settings.autoExecute || "false",
       soundAlerts: settings.soundAlerts || "false",
+      scannerIntervalSec: settings.scannerIntervalSec || "5",
+      sessionDurationSec: settings.sessionDurationSec || "600",
+      autoExecMaxPerSession: settings.autoExecMaxPerSession || "5",
     });
   }
 
@@ -323,6 +335,82 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     checked={formData.soundAlerts === "true"}
                     onCheckedChange={(checked) => handleSwitchChange('soundAlerts', checked)}
                   />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Separator />
+
+            {/* Auto Execution Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Auto Execution Controls</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="scannerInterval">Scanner Interval</Label>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        id="scannerInterval"
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={formData.scannerIntervalSec}
+                        onChange={(e) => handleInputChange('scannerIntervalSec', e.target.value)}
+                        placeholder="5"
+                      />
+                      <span className="text-sm text-muted-foreground">sec</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      How often to scan for opportunities
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="sessionDuration">Session Duration</Label>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        id="sessionDuration"
+                        type="number"
+                        min="60"
+                        max="3600"
+                        value={formData.sessionDurationSec}
+                        onChange={(e) => handleInputChange('sessionDurationSec', e.target.value)}
+                        placeholder="600"
+                      />
+                      <span className="text-sm text-muted-foreground">sec</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Auto execution session limit ({Math.floor(parseInt(formData.sessionDurationSec || "600") / 60)} min)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="maxAutoExec">Max Auto Executions</Label>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        id="maxAutoExec"
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={formData.autoExecMaxPerSession}
+                        onChange={(e) => handleInputChange('autoExecMaxPerSession', e.target.value)}
+                        placeholder="5"
+                      />
+                      <span className="text-sm text-muted-foreground">trades</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Maximum auto trades per session
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    <strong>Session Protection:</strong> Auto execution will stop after {formData.autoExecMaxPerSession || "5"} trades 
+                    or {Math.floor(parseInt(formData.sessionDurationSec || "600") / 60)} minutes, whichever comes first.
+                  </p>
                 </div>
               </CardContent>
             </Card>

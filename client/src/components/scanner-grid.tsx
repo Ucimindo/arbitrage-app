@@ -30,6 +30,11 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanTime, setLastScanTime] = useState<Date | null>(null);
+  
+  // Auto execution session tracking
+  const sessionStart = useRef(Date.now());
+  const autoExecCount = useRef(0);
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const SCAN_INTERVAL = 5000; // 5 seconds
 
@@ -42,9 +47,52 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
       const response = await apiRequest("GET", "/api/scan/all");
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setScanResults(data);
       setLastScanTime(new Date());
+      
+      // Auto execution logic
+      const autoExecute = settings?.autoExecute === "true";
+      const sessionDurationSec = parseInt(settings?.sessionDurationSec || "600");
+      const autoExecMaxPerSession = parseInt(settings?.autoExecMaxPerSession || "5");
+      
+      if (autoExecute && isScanning) {
+        const now = Date.now();
+        const sessionElapsed = now - sessionStart.current;
+        const sessionExpired = sessionElapsed > sessionDurationSec * 1000;
+        const maxTradesReached = autoExecCount.current >= autoExecMaxPerSession;
+        
+        if (!sessionExpired && !maxTradesReached) {
+          // Find profitable opportunities and execute automatically
+          const profitablePairs = data.filter((r: ScanResult) => r.profitable);
+          
+          for (const pair of profitablePairs.slice(0, 1)) { // Execute one at a time
+            if (autoExecCount.current < autoExecMaxPerSession) {
+              try {
+                await executeArbitrage(pair.pair, "auto");
+                autoExecCount.current += 1;
+                toast({
+                  title: "Auto Execution",
+                  description: `Executed arbitrage for ${pair.pair.toUpperCase()} [auto]`,
+                });
+                break; // Only execute one per scan cycle
+              } catch (error) {
+                console.error("Auto execution failed:", error);
+              }
+            }
+          }
+        } else if (sessionExpired || maxTradesReached) {
+          // Stop scanner when session limits are reached
+          stopScanning();
+          toast({
+            title: "Auto Execution Stopped",
+            description: sessionExpired 
+              ? `Session expired after ${Math.floor(sessionDurationSec / 60)} minutes`
+              : `Maximum ${autoExecMaxPerSession} auto trades reached`,
+            variant: "destructive",
+          });
+        }
+      }
       
       if (!isScanning) {
         // Only show toast for manual scans
@@ -67,14 +115,29 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
     },
   });
 
+  // Auto execute function
+  const executeArbitrage = async (tokenPair: string, executionType: "auto" | "manual" = "manual") => {
+    const response = await apiRequest("POST", "/api/arbitrage/execute", {
+      tokenPair,
+      executionType,
+    });
+    return response.json();
+  };
+
   const startScanning = () => {
     setIsScanning(true);
+    // Reset session tracking
+    sessionStart.current = Date.now();
+    autoExecCount.current = 0;
+    
     // Immediate scan
     scanMutation.mutate();
-    // Set up interval
+    
+    // Set up interval with configurable timing
+    const scannerIntervalSec = parseInt(settings?.scannerIntervalSec || "5");
     intervalRef.current = setInterval(() => {
       scanMutation.mutate();
-    }, SCAN_INTERVAL);
+    }, scannerIntervalSec * 1000);
   };
 
   const stopScanning = () => {
