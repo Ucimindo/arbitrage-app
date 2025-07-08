@@ -1,10 +1,22 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { insertPriceSchema, insertArbitrageLogSchema, insertSettingSchema } from "@shared/schema";
 import { z } from "zod";
 import { format } from "date-fns";
+import bcrypt from "bcrypt";
+import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { db } from "./db";
+
+// Authentication middleware
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.session?.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  next();
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -40,9 +52,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
-  // Initialize default wallets and settings
+  // Authentication routes
+  app.post('/api/login', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+      }
+
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+
+      req.session.user = { id: user.id, username: user.username };
+      res.json({ success: true, user: { id: user.id, username: user.username } });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post('/api/logout', (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ success: true });
+    });
+  });
+
+  app.get('/api/auth/user', (req, res) => {
+    if (req.session?.user) {
+      res.json(req.session.user);
+    } else {
+      res.status(401).json({ message: "Not authenticated" });
+    }
+  });
+
+  // Initialize default wallets, settings and admin user
   app.post('/api/init', async (req, res) => {
     try {
+      // Create default admin user if it doesn't exist
+      const existingUser = await storage.getUserByUsername('admin');
+      if (!existingUser) {
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        await storage.createUser({
+          username: 'admin',
+          passwordHash: hashedPassword,
+        });
+        console.log('Created default admin user (username: admin, password: admin123)');
+      }
+
       // Create default wallets for all token pairs
       await storage.initializeWallets();
 
@@ -140,7 +207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // New scan all endpoints
-  app.get("/api/scan/all", async (req, res) => {
+  app.get("/api/scan/all", requireAuth, async (req, res) => {
     try {
       const tokenPairs = ['btc_usdt', 'eth_usdt', 'cake_usdt', 'link_usdt', 'wbnb_usdt'];
       const results = [];
@@ -190,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/arbitrage/detail", async (req, res) => {
+  app.get("/api/arbitrage/detail", requireAuth, async (req, res) => {
     try {
       const tokenPair = req.query.pair as string || 'btc_usdt';
       const quoteSymbol = getQuoteSymbol(tokenPair);
@@ -256,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get arbitrage status
-  app.get('/api/arbitrage/status', async (req, res) => {
+  app.get('/api/arbitrage/status', requireAuth, async (req, res) => {
     try {
       const tokenPair = (req.query.pair as string) || 'btc_usdt';
       const pancakePrices = await storage.getPricesByDex('pancake', tokenPair);
@@ -326,7 +393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Execute arbitrage
-  app.post('/api/arbitrage/execute', async (req, res) => {
+  app.post('/api/arbitrage/execute', requireAuth, async (req, res) => {
     try {
       const { tokenPair = 'btc_usdt', executionType = 'manual' } = req.body;
       const quoteSymbol = getQuoteSymbol(tokenPair);
@@ -424,7 +491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get arbitrage history
-  app.get('/api/arbitrage/history', async (req, res) => {
+  app.get('/api/arbitrage/history', requireAuth, async (req, res) => {
     try {
       const tokenPair = (req.query.pair as string) || 'btc_usdt';
       const history = await storage.getArbitrageHistory(tokenPair, 20);
@@ -435,7 +502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get settings
-  app.get('/api/settings', async (req, res) => {
+  app.get('/api/settings', requireAuth, async (req, res) => {
     try {
       const settings = await storage.getAllSettings();
       const settingsMap = settings.reduce((acc, setting) => {
@@ -449,7 +516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update settings
-  app.post('/api/settings', async (req, res) => {
+  app.post('/api/settings', requireAuth, async (req, res) => {
     try {
       const settingsData = req.body;
       const updatedSettings = [];
@@ -466,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get wallet balances
-  app.get('/api/wallets', async (req, res) => {
+  app.get('/api/wallets', requireAuth, async (req, res) => {
     try {
       const tokenPair = req.query.pair as string;
       const wallets = await storage.getWallets(tokenPair);
@@ -525,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }, 5000); // Update every 5 seconds
 
   // CSV Export endpoint
-  app.get("/api/arbitrage/export/csv", async (req, res) => {
+  app.get("/api/arbitrage/export/csv", requireAuth, async (req, res) => {
     try {
       const logs = await storage.getArbitrageHistory('', 1000); // Get all logs, limit 1000
       
@@ -568,7 +635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // JSON Export endpoint
-  app.get("/api/arbitrage/export/json", async (req, res) => {
+  app.get("/api/arbitrage/export/json", requireAuth, async (req, res) => {
     try {
       const logs = await storage.getArbitrageHistory('', 1000); // Get all logs, limit 1000
       

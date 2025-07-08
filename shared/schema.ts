@@ -65,16 +65,24 @@ export type InsertWallet = z.infer<typeof insertWalletSchema>;
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 
-// Remove the users table as it's not needed for this app
+// Users table for authentication
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+// Session storage table for express-session
+export const sessions = pgTable("sessions", {
+  sid: text("sid").primaryKey(),
+  sess: text("sess").notNull(),
+  expire: timestamp("expire", { withTimezone: true }).notNull(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({ 
+  id: true, 
+  createdAt: true 
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

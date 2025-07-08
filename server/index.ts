@@ -1,10 +1,40 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { pool } from "./db";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Session configuration
+const PgSession = connectPg(session);
+app.use(
+  session({
+    store: new PgSession({
+      pool: pool,
+      tableName: "sessions",
+      createTableIfMissing: true,
+    }),
+    secret: process.env.SESSION_SECRET || "arbitrage_secret_2025",
+    resave: false,
+    saveUninitialized: false,
+    cookie: { 
+      maxAge: 3600 * 1000, // 1 hour
+      httpOnly: true,
+      secure: false // Set to true in production with HTTPS
+    },
+  })
+);
+
+// Add session typing
+declare module 'express-session' {
+  interface SessionData {
+    user?: { id: number; username: string };
+  }
+}
 
 app.use((req, res, next) => {
   const start = Date.now();
