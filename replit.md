@@ -119,6 +119,12 @@ Preferred communication style: Simple, everyday language.
   - Added comprehensive trading settings: profit thresholds, slippage, automation
   - Improved UX with single settings access point via ⚙️ button
   - Removed redundant settings card from dashboard layout
+- **July 08, 2025**: Enhanced multi-token support in backend
+  - Added quoteSymbol and baseSymbol fields to all API responses
+  - Replaced hardcoded USDT assumptions with dynamic quote token handling
+  - Updated /api/scan/all and /api/arbitrage/detail endpoints for token-awareness
+  - Enhanced profit calculations to work with any BASE/QUOTE combination
+  - Future-ready for DAI, USDC, BUSD, and other quote tokens
 
 ## Manual Scan Mode Features
 

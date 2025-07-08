@@ -156,7 +156,7 @@ export class DatabaseStorage implements IStorage {
           dex: 'pancake',
           tokenPair,
           baseBalance: this.getRandomBalance(tokenPair),
-          quoteBalance: (Math.random() * 3000 + 1000).toFixed(8), // Random USDT balance
+          quoteBalance: (Math.random() * 3000 + 1000).toFixed(8), // Random quote token balance
         });
 
         // Create QuickSwap wallet  
@@ -166,7 +166,7 @@ export class DatabaseStorage implements IStorage {
           dex: 'quickswap',
           tokenPair,
           baseBalance: this.getRandomBalance(tokenPair),
-          quoteBalance: (Math.random() * 3000 + 1000).toFixed(8), // Random USDT balance
+          quoteBalance: (Math.random() * 3000 + 1000).toFixed(8), // Random quote token balance
         });
       }
     }

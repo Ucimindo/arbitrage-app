@@ -62,6 +62,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to extract quote symbol from trading pair
+  function getQuoteSymbol(tokenPair: string): string {
+    return tokenPair.split("_")[1].toUpperCase();
+  }
+
   // Helper function to get base prices for different tokens
   function getBasePrice(tokenPair: string, dex: string): number {
     const basePrices = {
@@ -70,6 +75,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'cake_usdt': { pancake: 4.23, quickswap: 4.28 },
       'link_usdt': { pancake: 13.45, quickswap: 13.52 },
       'wbnb_usdt': { pancake: 298.67, quickswap: 301.12 },
+      // Support for additional quote tokens
+      'btc_dai': { pancake: 43100.25, quickswap: 43185.50 },
+      'eth_dai': { pancake: 2450.12, quickswap: 2461.85 },
+      'btc_usdc': { pancake: 43110.75, quickswap: 43195.20 },
+      'eth_usdc': { pancake: 2453.45, quickswap: 2464.90 },
     };
     
     return basePrices[tokenPair as keyof typeof basePrices]?.[dex as keyof typeof basePrices['btc_usdt']] || 100;
@@ -126,9 +136,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const pair of tokenPairs) {
         const pancakePrice = getBasePrice(pair, 'pancake');
         const quickswapPrice = getBasePrice(pair, 'quickswap');
+        const quoteSymbol = getQuoteSymbol(pair);
         
         const spread = Math.abs(pancakePrice - quickswapPrice);
         const estimatedProfit = spread * 0.85; // Minus fees
+        
+        // Get minimum profit threshold for this pair and quote token
+        const minProfitSetting = await storage.getSetting(`minProfitThreshold_${pair}`);
+        const minProfit = parseFloat(minProfitSetting?.value || '50');
         
         results.push({
           pair,
@@ -136,7 +151,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           priceB: quickswapPrice.toFixed(4),
           spread: spread.toFixed(4),
           estimatedProfit: estimatedProfit.toFixed(4),
-          profitable: estimatedProfit > 50,
+          profitable: estimatedProfit > minProfit,
+          quoteSymbol,
+          baseSymbol: pair.split("_")[0].toUpperCase(),
           timestamp: new Date().toISOString(),
         });
       }
@@ -150,6 +167,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/arbitrage/detail", async (req, res) => {
     try {
       const tokenPair = req.query.pair as string || 'btc_usdt';
+      const quoteSymbol = getQuoteSymbol(tokenPair);
+      const baseSymbol = tokenPair.split("_")[0].toUpperCase();
       
       const walletA = await storage.getWalletByDex('pancake', tokenPair);
       const walletB = await storage.getWalletByDex('quickswap', tokenPair);
@@ -165,8 +184,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const drift = pancakePrice - quickswapPrice;
       const estimatedProfit = spread * 0.85;
       
+      // Get minimum profit threshold for this specific quote token
+      const minProfitSetting = await storage.getSetting(`minProfitThreshold_${tokenPair}`);
+      const minProfit = parseFloat(minProfitSetting?.value || '50');
+      
       const detail = {
         pair: tokenPair,
+        quoteSymbol,
+        baseSymbol,
         walletA: {
           ...walletA,
           currentPrice: pancakePrice.toFixed(4),
@@ -180,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         spread: spread.toFixed(4),
         drift: drift.toFixed(4),
         estimatedProfit: estimatedProfit.toFixed(4),
-        profitable: estimatedProfit > 50,
+        profitable: estimatedProfit > minProfit,
         timestamp: new Date().toISOString(),
       };
 
@@ -214,7 +239,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const drift = pancakePrices.length > 1 ? priceA - parseFloat(pancakePrices[1].price) : 0;
       
       // Calculate estimated profit (1 unit trade, minus fees)
-      const tradingUnit = tokenPair === 'btc_usdt' ? 1 : tokenPair === 'eth_usdt' ? 10 : 100;
+      const baseToken = tokenPair.split("_")[0];
+      const quoteSymbol = getQuoteSymbol(tokenPair);
+      const tradingUnit = baseToken === 'btc' ? 1 : baseToken === 'eth' ? 10 : 100;
       const feeEstimate = priceA * 0.001; // 0.1% fee estimate
       const estimatedProfit = Math.max(0, (spread * tradingUnit) - feeEstimate);
       
@@ -228,7 +255,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         estimatedProfit: estimatedProfit.toFixed(2),
         profitable,
         priceA: priceA.toFixed(4),
-        priceB: priceB.toFixed(4)
+        priceB: priceB.toFixed(4),
+        quoteSymbol,
+        baseSymbol: baseToken.toUpperCase()
       };
 
       // Broadcast to WebSocket clients
@@ -244,6 +273,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/arbitrage/execute', async (req, res) => {
     try {
       const { tokenPair = 'btc_usdt' } = req.body;
+      const quoteSymbol = getQuoteSymbol(tokenPair);
+      const baseToken = tokenPair.split("_")[0];
       const pancakePrices = await storage.getPricesByDex('pancake', tokenPair);
       const quickswapPrices = await storage.getPricesByDex('quickswap', tokenPair);
 
@@ -255,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const priceB = parseFloat(quickswapPrices[0].price);
       const spread = priceB - priceA;
       
-      const tradingUnit = tokenPair === 'btc_usdt' ? 1 : tokenPair === 'eth_usdt' ? 10 : 100;
+      const tradingUnit = baseToken === 'btc' ? 1 : baseToken === 'eth' ? 10 : 100;
       const feeEstimate = priceA * 0.001;
       const estimatedProfit = Math.max(0, (spread * tradingUnit) - feeEstimate);
 
@@ -263,7 +294,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const minProfit = parseFloat(minProfitSetting?.value || '10');
       
       if (estimatedProfit < minProfit) {
-        return res.status(400).json({ message: 'Profit below minimum threshold' });
+        return res.status(400).json({ 
+          message: `Profit below minimum threshold (${minProfit} ${quoteSymbol})` 
+        });
       }
 
       const logData = {
@@ -286,11 +319,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const walletB = await storage.getWalletByDex('quickswap', tokenPair);
       
       if (walletA && walletB) {
-        // Buy on wallet A (spend USDT, get base token)
+        // Buy on wallet A (spend quote token, get base token)
         const newBaseBalanceA = parseFloat(walletA.baseBalance) + tradingUnit;
         const newQuoteBalanceA = parseFloat(walletA.quoteBalance) - (priceA * tradingUnit);
         
-        // Sell on wallet B (spend base token, get USDT)
+        // Sell on wallet B (spend base token, get quote token)
         const newBaseBalanceB = parseFloat(walletB.baseBalance) - tradingUnit;
         const newQuoteBalanceB = parseFloat(walletB.quoteBalance) + (priceB * tradingUnit);
         
