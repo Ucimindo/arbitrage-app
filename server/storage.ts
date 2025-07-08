@@ -26,17 +26,18 @@ export interface IStorage {
   
   // Price methods
   insertPrice(price: InsertPrice): Promise<Price>;
-  getLatestPrices(): Promise<Price[]>;
-  getPricesByDex(dex: string): Promise<Price[]>;
+  getLatestPrices(tokenPair?: string): Promise<Price[]>;
+  getPricesByDex(dex: string, tokenPair: string): Promise<Price[]>;
   
   // Arbitrage methods
   insertArbitrageLog(log: InsertArbitrageLog): Promise<ArbitrageLog>;
-  getArbitrageHistory(limit?: number): Promise<ArbitrageLog[]>;
+  getArbitrageHistory(tokenPair: string, limit?: number): Promise<ArbitrageLog[]>;
   
   // Wallet methods
-  getWallets(): Promise<Wallet[]>;
-  getWalletByDex(dex: string): Promise<Wallet | undefined>;
-  updateWalletBalances(id: number, usdtBalance: string, btcBalance: string): Promise<Wallet>;
+  getWallets(tokenPair?: string): Promise<Wallet[]>;
+  getWalletByDex(dex: string, tokenPair: string): Promise<Wallet | undefined>;
+  updateWalletBalances(id: number, baseBalance: string, quoteBalance: string): Promise<Wallet>;
+  initializeWallets(): Promise<void>;
   
   // Settings methods
   getSetting(key: string): Promise<Setting | undefined>;
@@ -68,7 +69,16 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getLatestPrices(): Promise<Price[]> {
+  async getLatestPrices(tokenPair?: string): Promise<Price[]> {
+    if (tokenPair) {
+      return await db
+        .select()
+        .from(prices)
+        .where(eq(prices.tokenPair, tokenPair))
+        .orderBy(desc(prices.timestamp))
+        .limit(10);
+    }
+    
     return await db
       .select()
       .from(prices)
@@ -76,11 +86,11 @@ export class DatabaseStorage implements IStorage {
       .limit(10);
   }
 
-  async getPricesByDex(dex: string): Promise<Price[]> {
+  async getPricesByDex(dex: string, tokenPair: string): Promise<Price[]> {
     return await db
       .select()
       .from(prices)
-      .where(eq(prices.dex, dex))
+      .where(and(eq(prices.dex, dex), eq(prices.tokenPair, tokenPair)))
       .orderBy(desc(prices.timestamp))
       .limit(5);
   }
@@ -90,34 +100,87 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getArbitrageHistory(limit = 20): Promise<ArbitrageLog[]> {
+  async getArbitrageHistory(tokenPair: string, limit = 20): Promise<ArbitrageLog[]> {
     return await db
       .select()
       .from(arbitrageLog)
+      .where(eq(arbitrageLog.tokenPair, tokenPair))
       .orderBy(desc(arbitrageLog.executedAt))
       .limit(limit);
   }
 
-  async getWallets(): Promise<Wallet[]> {
+  async getWallets(tokenPair?: string): Promise<Wallet[]> {
+    if (tokenPair) {
+      return await db
+        .select()
+        .from(wallets)
+        .where(eq(wallets.tokenPair, tokenPair));
+    }
+    
     return await db.select().from(wallets);
   }
 
-  async getWalletByDex(dex: string): Promise<Wallet | undefined> {
-    const [wallet] = await db.select().from(wallets).where(eq(wallets.dex, dex));
+  async getWalletByDex(dex: string, tokenPair: string): Promise<Wallet | undefined> {
+    const [wallet] = await db
+      .select()
+      .from(wallets)
+      .where(and(eq(wallets.dex, dex), eq(wallets.tokenPair, tokenPair)));
     return wallet || undefined;
   }
 
-  async updateWalletBalances(id: number, usdtBalance: string, btcBalance: string): Promise<Wallet> {
+  async updateWalletBalances(id: number, baseBalance: string, quoteBalance: string): Promise<Wallet> {
     const [wallet] = await db
       .update(wallets)
       .set({ 
-        usdtBalance, 
-        btcBalance, 
+        baseBalance, 
+        quoteBalance, 
         lastUpdated: new Date() 
       })
       .where(eq(wallets.id, id))
       .returning();
     return wallet;
+  }
+
+  async initializeWallets(): Promise<void> {
+    const tokenPairs = ['btc_usdt', 'eth_usdt', 'cake_usdt', 'link_usdt', 'wbnb_usdt'];
+    
+    for (const tokenPair of tokenPairs) {
+      // Check if wallets already exist for this pair
+      const existingWallets = await this.getWallets(tokenPair);
+      
+      if (existingWallets.length === 0) {
+        // Create PancakeSwap wallet
+        await db.insert(wallets).values({
+          name: `Wallet A - PancakeSwap`,
+          chain: 'bnb',
+          dex: 'pancake',
+          tokenPair,
+          baseBalance: this.getRandomBalance(tokenPair),
+          quoteBalance: (Math.random() * 3000 + 1000).toFixed(8), // Random USDT balance
+        });
+
+        // Create QuickSwap wallet  
+        await db.insert(wallets).values({
+          name: `Wallet B - QuickSwap`,
+          chain: 'polygon',
+          dex: 'quickswap',
+          tokenPair,
+          baseBalance: this.getRandomBalance(tokenPair),
+          quoteBalance: (Math.random() * 3000 + 1000).toFixed(8), // Random USDT balance
+        });
+      }
+    }
+  }
+
+  private getRandomBalance(tokenPair: string): string {
+    const baseBalances = {
+      'btc_usdt': (Math.random() * 0.1 + 0.01).toFixed(8),
+      'eth_usdt': (Math.random() * 2 + 0.1).toFixed(8),
+      'cake_usdt': (Math.random() * 100 + 10).toFixed(8),
+      'link_usdt': (Math.random() * 50 + 5).toFixed(8),
+      'wbnb_usdt': (Math.random() * 10 + 1).toFixed(8),
+    };
+    return baseBalances[tokenPair as keyof typeof baseBalances] || '0';
   }
 
   async getSetting(key: string): Promise<Setting | undefined> {

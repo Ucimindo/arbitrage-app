@@ -6,7 +6,7 @@ import { z } from "zod";
 export const prices = pgTable("prices", {
   id: serial("id").primaryKey(),
   dex: text("dex").notNull(), // 'pancake' or 'quickswap'
-  tokenPair: text("token_pair").notNull(), // 'BTC/USDT'
+  tokenPair: text("token_pair").notNull(), // 'btc_usdt', 'eth_usdt', etc.
   price: numeric("price", { precision: 18, scale: 8 }).notNull(),
   timestamp: timestamp("timestamp", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -14,7 +14,7 @@ export const prices = pgTable("prices", {
 // Arbitrage log for tracking executions
 export const arbitrageLog = pgTable("arbitrage_log", {
   id: serial("id").primaryKey(),
-  pair: text("pair").notNull(),
+  tokenPair: text("token_pair").notNull(), // 'btc_usdt', 'eth_usdt', etc.
   priceA: numeric("price_a", { precision: 18, scale: 8 }).notNull(),
   priceB: numeric("price_b", { precision: 18, scale: 8 }).notNull(),
   spread: numeric("spread", { precision: 18, scale: 8 }).notNull(),
@@ -29,8 +29,9 @@ export const wallets = pgTable("wallets", {
   name: text("name").notNull(),
   chain: text("chain").notNull(), // 'bnb' or 'polygon'
   dex: text("dex").notNull(), // 'pancake' or 'quickswap'
-  usdtBalance: numeric("usdt_balance", { precision: 18, scale: 8 }).notNull(),
-  btcBalance: numeric("btc_balance", { precision: 18, scale: 8 }).notNull(),
+  tokenPair: text("token_pair").notNull(), // 'btc_usdt', 'eth_usdt', etc.
+  baseBalance: numeric("base_balance", { precision: 18, scale: 8 }).notNull(), // BTC, ETH, CAKE, etc.
+  quoteBalance: numeric("quote_balance", { precision: 18, scale: 8 }).notNull(), // USDT
   lastUpdated: timestamp("last_updated", { withTimezone: true }).defaultNow().notNull(),
 });
 

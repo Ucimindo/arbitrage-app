@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
+import { tokenOptions } from "./token-selector";
 
 interface ArbitrageLogEntry {
   id: number;
-  pair: string;
+  tokenPair: string;
   priceA: string;
   priceB: string;
   spread: string;
@@ -14,11 +15,22 @@ interface ArbitrageLogEntry {
   executedAt: string;
 }
 
-export default function TransactionLog() {
+interface TransactionLogProps {
+  tokenPair: string;
+}
+
+export default function TransactionLog({ tokenPair }: TransactionLogProps) {
   const { data: history, isLoading } = useQuery<ArbitrageLogEntry[]>({
-    queryKey: ["/api/arbitrage/history"],
+    queryKey: ["/api/arbitrage/history", tokenPair],
+    queryFn: async () => {
+      const response = await fetch(`/api/arbitrage/history?pair=${tokenPair}`);
+      return response.json();
+    },
     refetchInterval: 10000, // Refresh every 10 seconds
   });
+
+  const selectedToken = tokenOptions.find(option => option.value === tokenPair);
+  const tokenLabel = selectedToken?.label || 'TOKEN/USDT';
 
   if (isLoading) {
     return (
@@ -52,7 +64,7 @@ export default function TransactionLog() {
                   <div className="text-sm text-muted-foreground">
                     {entry.executed ? 'Arbitrage Executed' : 'Opportunity Missed'}
                   </div>
-                  <div className="text-foreground font-mono">{entry.pair}</div>
+                  <div className="text-foreground font-mono">{tokenLabel}</div>
                 </div>
                 <div className="text-right">
                   <div className={`font-mono ${

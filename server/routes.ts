@@ -42,17 +42,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize default wallets and settings
   app.post('/api/init', async (req, res) => {
     try {
-      // Create default wallets
-      const wallets = await storage.getWallets();
-      if (wallets.length === 0) {
-        await storage.updateWalletBalances(1, '2450.67', '0.0523'); // PancakeSwap
-        await storage.updateWalletBalances(2, '1823.92', '0.0847'); // QuickSwap
-      }
+      // Create default wallets for all token pairs
+      await storage.initializeWallets();
 
-      // Create default settings
-      await storage.setSetting('minProfitThreshold', '50');
-      await storage.setSetting('slippageTolerance', '0.5');
-      await storage.setSetting('maxPositionSize', '1000');
+      // Create default settings for each token pair
+      const tokenPairs = ['btc_usdt', 'eth_usdt', 'cake_usdt', 'link_usdt', 'wbnb_usdt'];
+      for (const pair of tokenPairs) {
+        await storage.setSetting(`minProfitThreshold_${pair}`, '50');
+        await storage.setSetting(`slippageTolerance_${pair}`, '0.5');
+        await storage.setSetting(`maxPositionSize_${pair}`, '1000');
+      }
+      
       await storage.setSetting('autoExecute', 'true');
       await storage.setSetting('soundAlerts', 'false');
 
@@ -62,22 +62,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to get base prices for different tokens
+  function getBasePrice(tokenPair: string, dex: string): number {
+    const basePrices = {
+      'btc_usdt': { pancake: 43125.45, quickswap: 43212.77 },
+      'eth_usdt': { pancake: 2456.78, quickswap: 2467.23 },
+      'cake_usdt': { pancake: 4.23, quickswap: 4.28 },
+      'link_usdt': { pancake: 13.45, quickswap: 13.52 },
+      'wbnb_usdt': { pancake: 298.67, quickswap: 301.12 },
+    };
+    
+    return basePrices[tokenPair as keyof typeof basePrices]?.[dex as keyof typeof basePrices['btc_usdt']] || 100;
+  }
+
   // Get PancakeSwap price
   app.get('/api/price/pancake', async (req, res) => {
     try {
-      // Generate mock price data
-      const basePrice = 43125.45;
-      const variation = (Math.random() - 0.5) * 20;
+      const tokenPair = (req.query.pair as string) || 'btc_usdt';
+      const basePrice = getBasePrice(tokenPair, 'pancake');
+      const variation = (Math.random() - 0.5) * (basePrice * 0.001); // 0.1% variation
       const price = basePrice + variation;
 
       const priceData = {
         dex: 'pancake',
-        tokenPair: 'BTC/USDT',
+        tokenPair,
         price: price.toFixed(8)
       };
 
       await storage.insertPrice(priceData);
-      res.json({ price: price.toFixed(2), timestamp: new Date().toISOString() });
+      res.json({ price: price.toFixed(4), timestamp: new Date().toISOString() });
     } catch (error) {
       res.status(500).json({ message: 'Failed to get PancakeSwap price' });
     }
@@ -86,19 +99,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get QuickSwap price
   app.get('/api/price/quickswap', async (req, res) => {
     try {
-      // Generate mock price data (slightly higher for arbitrage opportunity)
-      const basePrice = 43212.77;
-      const variation = (Math.random() - 0.5) * 20;
+      const tokenPair = (req.query.pair as string) || 'btc_usdt';
+      const basePrice = getBasePrice(tokenPair, 'quickswap');
+      const variation = (Math.random() - 0.5) * (basePrice * 0.001); // 0.1% variation
       const price = basePrice + variation;
 
       const priceData = {
         dex: 'quickswap',
-        tokenPair: 'BTC/USDT',
+        tokenPair,
         price: price.toFixed(8)
       };
 
       await storage.insertPrice(priceData);
-      res.json({ price: price.toFixed(2), timestamp: new Date().toISOString() });
+      res.json({ price: price.toFixed(4), timestamp: new Date().toISOString() });
     } catch (error) {
       res.status(500).json({ message: 'Failed to get QuickSwap price' });
     }
@@ -107,17 +120,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get arbitrage status
   app.get('/api/arbitrage/status', async (req, res) => {
     try {
-      const pancakePrices = await storage.getPricesByDex('pancake');
-      const quickswapPrices = await storage.getPricesByDex('quickswap');
+      const tokenPair = (req.query.pair as string) || 'btc_usdt';
+      const pancakePrices = await storage.getPricesByDex('pancake', tokenPair);
+      const quickswapPrices = await storage.getPricesByDex('quickswap', tokenPair);
 
       if (pancakePrices.length === 0 || quickswapPrices.length === 0) {
         return res.json({
-          spread: 0,
-          drift: 0,
-          estimatedProfit: 0,
+          spread: "0.00",
+          drift: "0.00",
+          estimatedProfit: "0.00",
           profitable: false,
-          priceA: 0,
-          priceB: 0
+          priceA: "0.00",
+          priceB: "0.00"
         });
       }
 
@@ -126,21 +140,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const spread = priceB - priceA;
       const drift = pancakePrices.length > 1 ? priceA - parseFloat(pancakePrices[1].price) : 0;
       
-      // Calculate estimated profit (assuming 1 BTC trade, minus fees)
-      const estimatedProfit = Math.max(0, spread - 4); // Rough fee estimate
-      const profitable = estimatedProfit > 50; // Configurable threshold
+      // Calculate estimated profit (1 unit trade, minus fees)
+      const tradingUnit = tokenPair === 'btc_usdt' ? 1 : tokenPair === 'eth_usdt' ? 10 : 100;
+      const feeEstimate = priceA * 0.001; // 0.1% fee estimate
+      const estimatedProfit = Math.max(0, (spread * tradingUnit) - feeEstimate);
+      
+      const minProfitSetting = await storage.getSetting(`minProfitThreshold_${tokenPair}`);
+      const minProfit = parseFloat(minProfitSetting?.value || '10');
+      const profitable = estimatedProfit > minProfit;
 
       const status = {
-        spread: spread.toFixed(2),
-        drift: drift.toFixed(2),
+        spread: spread.toFixed(4),
+        drift: drift.toFixed(4),
         estimatedProfit: estimatedProfit.toFixed(2),
         profitable,
-        priceA: priceA.toFixed(2),
-        priceB: priceB.toFixed(2)
+        priceA: priceA.toFixed(4),
+        priceB: priceB.toFixed(4)
       };
 
       // Broadcast to WebSocket clients
-      broadcast({ type: 'arbitrage_status', data: status });
+      broadcast({ type: 'arbitrage_status', data: { ...status, tokenPair } });
 
       res.json(status);
     } catch (error) {
@@ -151,8 +170,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Execute arbitrage
   app.post('/api/arbitrage/execute', async (req, res) => {
     try {
-      const pancakePrices = await storage.getPricesByDex('pancake');
-      const quickswapPrices = await storage.getPricesByDex('quickswap');
+      const { tokenPair = 'btc_usdt' } = req.body;
+      const pancakePrices = await storage.getPricesByDex('pancake', tokenPair);
+      const quickswapPrices = await storage.getPricesByDex('quickswap', tokenPair);
 
       if (pancakePrices.length === 0 || quickswapPrices.length === 0) {
         return res.status(400).json({ message: 'No price data available' });
@@ -161,16 +181,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const priceA = parseFloat(pancakePrices[0].price);
       const priceB = parseFloat(quickswapPrices[0].price);
       const spread = priceB - priceA;
-      const estimatedProfit = Math.max(0, spread - 4);
+      
+      const tradingUnit = tokenPair === 'btc_usdt' ? 1 : tokenPair === 'eth_usdt' ? 10 : 100;
+      const feeEstimate = priceA * 0.001;
+      const estimatedProfit = Math.max(0, (spread * tradingUnit) - feeEstimate);
 
-      const minProfit = parseFloat((await storage.getSetting('minProfitThreshold'))?.value || '50');
+      const minProfitSetting = await storage.getSetting(`minProfitThreshold_${tokenPair}`);
+      const minProfit = parseFloat(minProfitSetting?.value || '10');
       
       if (estimatedProfit < minProfit) {
         return res.status(400).json({ message: 'Profit below minimum threshold' });
       }
 
       const logData = {
-        pair: 'BTC/USDT',
+        tokenPair,
         priceA: priceA.toFixed(8),
         priceB: priceB.toFixed(8),
         spread: spread.toFixed(8),
@@ -181,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const log = await storage.insertArbitrageLog(logData);
       
       // Broadcast to WebSocket clients
-      broadcast({ type: 'arbitrage_executed', data: log });
+      broadcast({ type: 'arbitrage_executed', data: { ...log, tokenPair } });
 
       res.json({ success: true, profit: estimatedProfit.toFixed(2) });
     } catch (error) {
@@ -192,7 +216,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get arbitrage history
   app.get('/api/arbitrage/history', async (req, res) => {
     try {
-      const history = await storage.getArbitrageHistory(20);
+      const tokenPair = (req.query.pair as string) || 'btc_usdt';
+      const history = await storage.getArbitrageHistory(tokenPair, 20);
       res.json(history);
     } catch (error) {
       res.status(500).json({ message: 'Failed to get arbitrage history' });
@@ -233,7 +258,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get wallet balances
   app.get('/api/wallets', async (req, res) => {
     try {
-      const wallets = await storage.getWallets();
+      const tokenPair = req.query.pair as string;
+      const wallets = await storage.getWallets(tokenPair);
       res.json(wallets);
     } catch (error) {
       res.status(500).json({ message: 'Failed to get wallets' });
@@ -243,30 +269,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Price update loop (simulated)
   setInterval(async () => {
     try {
-      // Generate and broadcast new prices
-      const pancakePrice = 43125.45 + (Math.random() - 0.5) * 20;
-      const quickswapPrice = 43212.77 + (Math.random() - 0.5) * 20;
+      const tokenPairs = ['btc_usdt', 'eth_usdt', 'cake_usdt', 'link_usdt', 'wbnb_usdt'];
+      
+      for (const tokenPair of tokenPairs) {
+        const pancakeBasePrice = getBasePrice(tokenPair, 'pancake');
+        const quickswapBasePrice = getBasePrice(tokenPair, 'quickswap');
+        
+        const pancakeVariation = (Math.random() - 0.5) * (pancakeBasePrice * 0.001);
+        const quickswapVariation = (Math.random() - 0.5) * (quickswapBasePrice * 0.001);
+        
+        const pancakePrice = pancakeBasePrice + pancakeVariation;
+        const quickswapPrice = quickswapBasePrice + quickswapVariation;
 
-      await storage.insertPrice({
-        dex: 'pancake',
-        tokenPair: 'BTC/USDT',
-        price: pancakePrice.toFixed(8)
-      });
+        await storage.insertPrice({
+          dex: 'pancake',
+          tokenPair,
+          price: pancakePrice.toFixed(8)
+        });
 
-      await storage.insertPrice({
-        dex: 'quickswap',
-        tokenPair: 'BTC/USDT',
-        price: quickswapPrice.toFixed(8)
-      });
+        await storage.insertPrice({
+          dex: 'quickswap',
+          tokenPair,
+          price: quickswapPrice.toFixed(8)
+        });
+      }
 
-      // Broadcast price updates
-      broadcast({
-        type: 'price_update',
-        data: {
-          pancake: pancakePrice.toFixed(2),
-          quickswap: quickswapPrice.toFixed(2)
-        }
-      });
+      // Broadcast price updates for current active pair (could be enhanced to track active pair)
+      const activePair = 'btc_usdt'; // Default active pair
+      const latestPancake = await storage.getPricesByDex('pancake', activePair);
+      const latestQuickswap = await storage.getPricesByDex('quickswap', activePair);
+      
+      if (latestPancake.length > 0 && latestQuickswap.length > 0) {
+        broadcast({
+          type: 'price_update',
+          data: {
+            tokenPair: activePair,
+            pancake: parseFloat(latestPancake[0].price).toFixed(4),
+            quickswap: parseFloat(latestQuickswap[0].price).toFixed(4)
+          }
+        });
+      }
     } catch (error) {
       console.error('Price update error:', error);
     }

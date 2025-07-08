@@ -4,17 +4,22 @@ import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ArbitrageStatusData } from "@/lib/types";
+import { tokenOptions } from "./token-selector";
 
 interface ArbitrageStatusProps {
   arbitrageStatus: ArbitrageStatusData | null;
+  tokenPair: string;
 }
 
-export default function ArbitrageStatus({ arbitrageStatus }: ArbitrageStatusProps) {
+export default function ArbitrageStatus({ arbitrageStatus, tokenPair }: ArbitrageStatusProps) {
   const { toast } = useToast();
+  const selectedToken = tokenOptions.find(option => option.value === tokenPair);
+  const baseSymbol = selectedToken?.symbol || 'TOKEN';
+  const baseIcon = selectedToken?.icon || '🪙';
 
   const handleExecuteArbitrage = async () => {
     try {
-      const response = await apiRequest("POST", "/api/arbitrage/execute");
+      const response = await apiRequest("POST", "/api/arbitrage/execute", { tokenPair });
       const result = await response.json();
       
       toast({
@@ -77,7 +82,10 @@ export default function ArbitrageStatus({ arbitrageStatus }: ArbitrageStatusProp
         </div>
         
         <div className="bg-muted rounded-lg p-4 text-center">
-          <div className="text-sm text-muted-foreground mb-1">Est. Profit (1 BTC)</div>
+          <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center space-x-1">
+            <span>{baseIcon}</span>
+            <span>Est. Profit (1 {baseSymbol})</span>
+          </div>
           <div className={`text-2xl font-mono ${isProfitable ? 'text-green-500' : 'text-red-500'}`}>
             ${arbitrageStatus.estimatedProfit}
           </div>

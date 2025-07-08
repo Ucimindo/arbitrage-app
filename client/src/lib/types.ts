@@ -17,7 +17,8 @@ export interface WalletData {
   name: string;
   chain: string;
   dex: string;
-  usdtBalance: string;
-  btcBalance: string;
+  tokenPair: string;
+  baseBalance: string;
+  quoteBalance: string;
   lastUpdated: string;
 }

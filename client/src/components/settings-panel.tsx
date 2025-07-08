@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,25 @@ interface Settings {
   soundAlerts: string;
 }
 
-export default function SettingsPanel() {
+interface SettingsPanelProps {
+  tokenPair: string;
+}
+
+export default function SettingsPanel({ tokenPair }: SettingsPanelProps) {
   const { toast } = useToast();
   
-  const { data: settings, isLoading } = useQuery<Settings>({
+  const { data: allSettings, isLoading } = useQuery<Record<string, string>>({
     queryKey: ["/api/settings"],
   });
+
+  // Extract settings for current token pair
+  const settings: Settings = {
+    minProfitThreshold: allSettings?.[`minProfitThreshold_${tokenPair}`] || '50',
+    slippageTolerance: allSettings?.[`slippageTolerance_${tokenPair}`] || '0.5',
+    maxPositionSize: allSettings?.[`maxPositionSize_${tokenPair}`] || '1000',
+    autoExecute: allSettings?.['autoExecute'] || 'false',
+    soundAlerts: allSettings?.['soundAlerts'] || 'false',
+  };
 
   const [formData, setFormData] = useState<Settings>({
     minProfitThreshold: '',
@@ -33,7 +46,15 @@ export default function SettingsPanel() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: Settings) => {
-      const response = await apiRequest("POST", "/api/settings", data);
+      // Transform settings to include token pair prefix
+      const settingsToUpdate = {
+        [`minProfitThreshold_${tokenPair}`]: data.minProfitThreshold,
+        [`slippageTolerance_${tokenPair}`]: data.slippageTolerance,
+        [`maxPositionSize_${tokenPair}`]: data.maxPositionSize,
+        'autoExecute': data.autoExecute,
+        'soundAlerts': data.soundAlerts,
+      };
+      const response = await apiRequest("POST", "/api/settings", settingsToUpdate);
       return response.json();
     },
     onSuccess: () => {
@@ -53,7 +74,7 @@ export default function SettingsPanel() {
   });
 
   // Initialize form data when settings are loaded
-  useState(() => {
+  useEffect(() => {
     if (settings) {
       setFormData(settings);
     }
