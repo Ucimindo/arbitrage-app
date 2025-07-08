@@ -1,0 +1,117 @@
+🔧 Build a fullstack crypto arbitrage monitoring app with the following stack:
+
+---
+
+### 🧩 FRONTEND
+
+**Tech Stack:**
+- React 18 + Vite
+- TailwindCSS (dark mode)
+- shadcn/ui (Radix-based components)
+- TanStack Query (react-query)
+- Wouter for routing
+- Axios for API requests
+
+**UI Layout:**
+
+🔹 **Top Navbar**
+- Title: “Dual Wallet Arbitrage”
+- Sync status badge (live / stale)
+- Manual refresh button
+
+🔹 **Main Panel – Split Layout**
+
+🅰️ **Wallet A – PancakeSwap (BNB Chain)**
+- Show:
+  - Token balance: USDT, BTCB
+  - Current price (from backend)
+  - Gas estimate (BNB)
+- Action:
+  - Button “Buy BTC” (simulated or real TX)
+
+🅱️ **Wallet B – QuickSwap (Polygon)**
+- Show:
+  - Token balance: BTCB/WBTC, USDT
+  - Current price (from backend)
+  - Gas estimate (MATIC)
+- Action:
+  - Button “Sell BTC”
+
+🔸 **Center Panel**
+- Spread calculation = priceB - priceA
+- Price drift (last 5s change)
+- Estimated profit (1 BTC)
+- Button: “Execute Arbitrage” (enabled only if profit > threshold)
+- Status badge: PROFITABLE / NOT PROFITABLE
+
+🔻 **Bottom Panel (Optional)**
+- Live TX log table
+- Wallet settings (slippage, spread threshold, etc.)
+
+---
+
+### 🧩 BACKEND
+
+**Tech Stack:**
+- Node.js + Express
+- PostgreSQL (Neon or Supabase)
+- Drizzle ORM
+- CORS + dotenv + morgan (logging)
+
+**Routes:**
+
+1. `GET /api/price/pancake`
+2. `GET /api/price/quickswap`
+3. `GET /api/arbitrage/status`
+   - Calculates: spread, drift, slippage sim, profit est.
+4. `POST /api/arbitrage/execute`
+   - Simulate arbitrage execution (log to DB)
+   - Honor minProfit, maxSlippage
+5. `GET /api/arbitrage/history`
+   - Returns last 20 logs
+6. `GET /api/settings`
+7. `POST /api/settings`
+   - Update min spread %, slippage tolerance, auto-execute flag
+
+---
+
+### 🧩 DATABASE SCHEMA (PostgreSQL)
+
+```sql
+-- prices table
+CREATE TABLE prices (
+  id SERIAL PRIMARY KEY,
+  dex TEXT,
+  token_pair TEXT,
+  price NUMERIC,
+  timestamp TIMESTAMPTZ DEFAULT now()
+);
+
+-- arbitrage log
+CREATE TABLE arbitrage_log (
+  id SERIAL PRIMARY KEY,
+  pair TEXT,
+  price_a NUMERIC,
+  price_b NUMERIC,
+  spread NUMERIC,
+  estimated_profit NUMERIC,
+  executed_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- wallets table
+CREATE TABLE wallets (
+  id SERIAL PRIMARY KEY,
+  name TEXT,
+  chain TEXT,
+  dex TEXT,
+  usdt_balance NUMERIC,
+  btc_balance NUMERIC,
+  last_updated TIMESTAMPTZ DEFAULT now()
+);
+
+-- settings table
+CREATE TABLE settings (
+  id SERIAL PRIMARY KEY,
+  key TEXT UNIQUE,
+  value TEXT
+);
