@@ -1,0 +1,80 @@
+🔧 Modify the fullstack arbitrage app to support:
+
+---
+
+### 🟢 MANUAL PRICE SCAN MODE
+
+1. Remove all automatic price polling
+2. Add a button: “🔍 Scan Opportunities”
+3. On click, call backend `/api/scan/all`:
+   - Scan all supported token pairs
+   - Return: priceA, priceB, spread, est. profit
+
+---
+
+### 📊 SCANNER GRID DISPLAY
+
+- Show results from `/api/scan/all` in a responsive table
+- Columns:
+  - Trading Pair
+  - Price (DEX A)
+  - Price (DEX B)
+  - Spread
+  - Est. Profit (1 unit)
+  - Status: PROFITABLE / NOT
+  - Action: “Select”
+
+- Highlight profitable rows (e.g. green badge)
+- Disable “Select” if profit < threshold
+
+---
+
+### 🧠 SELECT PAIR → DUAL WALLET PANEL
+
+- On click “Select”:
+  - Fetch data from `/api/arbitrage/detail?pair=xxx`
+  - Render Dual Wallet Panel below:
+    - Wallet A (PancakeSwap – BNB Chain)
+    - Wallet B (QuickSwap – Polygon)
+  - Show: token balances, current price, gas cost, spread, price drift
+
+---
+
+### 🟢 EXECUTE ARBITRAGE (NO TOKEN TRANSFER)
+
+- Button: **“Execute Arbitrage”**
+- On click:
+  - Send `POST /api/arbitrage/execute` with `{ pair: "xxx" }`
+  - Backend will:
+    1. Simulate BUY token on Wallet A (DEX A)
+    2. Simulate SELL token on Wallet B (DEX B)
+    3. Log both separately
+    4. ❌ Never transfer tokens between wallets
+- Show status per transaction (success/fail)
+- Update wallet balances locally
+
+---
+
+### 🗃️ API ENDPOINTS
+
+- `GET /api/scan/all` → returns all pairs price & opportunity
+- `GET /api/arbitrage/detail?pair=xxx` → full wallet info
+- `POST /api/arbitrage/execute` → simulate 2 TX (BUY A + SELL B)
+- `GET /api/token-list` → static token list
+- `GET /api/settings` → minProfit, maxSlippage, etc.
+
+---
+
+### ✅ OPTIONAL IMPROVEMENTS
+
+- Disable Execute button if opportunity has expired (check timestamp)
+- Auto-refresh wallet balances after execution
+- Log to `/api/arbitrage/history`
+
+---
+
+🧠 GOAL:
+- Let user scan manually
+- Avoid wasted resource from background loops
+- Execute arbitrage only after user selects best spread
+- Transactions always stay **wallet-local**, with zero bridge or cross-wallet action

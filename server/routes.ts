@@ -117,6 +117,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New scan all endpoints
+  app.get("/api/scan/all", async (req, res) => {
+    try {
+      const tokenPairs = ['btc_usdt', 'eth_usdt', 'cake_usdt', 'link_usdt', 'wbnb_usdt'];
+      const results = [];
+
+      for (const pair of tokenPairs) {
+        const pancakePrice = getBasePrice(pair, 'pancake');
+        const quickswapPrice = getBasePrice(pair, 'quickswap');
+        
+        const spread = Math.abs(pancakePrice - quickswapPrice);
+        const estimatedProfit = spread * 0.85; // Minus fees
+        
+        results.push({
+          pair,
+          priceA: pancakePrice.toFixed(4),
+          priceB: quickswapPrice.toFixed(4),
+          spread: spread.toFixed(4),
+          estimatedProfit: estimatedProfit.toFixed(4),
+          profitable: estimatedProfit > 50,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to scan markets" });
+    }
+  });
+
+  app.get("/api/arbitrage/detail", async (req, res) => {
+    try {
+      const tokenPair = req.query.pair as string || 'btc_usdt';
+      
+      const walletA = await storage.getWalletByDex('pancake', tokenPair);
+      const walletB = await storage.getWalletByDex('quickswap', tokenPair);
+      
+      if (!walletA || !walletB) {
+        return res.status(404).json({ message: "Wallets not found for pair" });
+      }
+
+      const pancakePrice = getBasePrice(tokenPair, 'pancake');
+      const quickswapPrice = getBasePrice(tokenPair, 'quickswap');
+      
+      const spread = Math.abs(pancakePrice - quickswapPrice);
+      const drift = pancakePrice - quickswapPrice;
+      const estimatedProfit = spread * 0.85;
+      
+      const detail = {
+        pair: tokenPair,
+        walletA: {
+          ...walletA,
+          currentPrice: pancakePrice.toFixed(4),
+          gasEstimate: "0.0023 BNB (~$0.85)",
+        },
+        walletB: {
+          ...walletB,
+          currentPrice: quickswapPrice.toFixed(4),
+          gasEstimate: "0.12 MATIC (~$0.05)",
+        },
+        spread: spread.toFixed(4),
+        drift: drift.toFixed(4),
+        estimatedProfit: estimatedProfit.toFixed(4),
+        profitable: estimatedProfit > 50,
+        timestamp: new Date().toISOString(),
+      };
+
+      res.json(detail);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get arbitrage detail" });
+    }
+  });
+
   // Get arbitrage status
   app.get('/api/arbitrage/status', async (req, res) => {
     try {
@@ -202,12 +275,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         executed: true
       };
 
+      // Generate transaction IDs for simulation
+      const txA = `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 8)}`;
+      const txB = `0x${Math.random().toString(16).substr(2, 8)}...${Math.random().toString(16).substr(2, 8)}`;
+
       const log = await storage.insertArbitrageLog(logData);
+      
+      // Simulate wallet balance updates
+      const walletA = await storage.getWalletByDex('pancake', tokenPair);
+      const walletB = await storage.getWalletByDex('quickswap', tokenPair);
+      
+      if (walletA && walletB) {
+        // Buy on wallet A (spend USDT, get base token)
+        const newBaseBalanceA = parseFloat(walletA.baseBalance) + tradingUnit;
+        const newQuoteBalanceA = parseFloat(walletA.quoteBalance) - (priceA * tradingUnit);
+        
+        // Sell on wallet B (spend base token, get USDT)
+        const newBaseBalanceB = parseFloat(walletB.baseBalance) - tradingUnit;
+        const newQuoteBalanceB = parseFloat(walletB.quoteBalance) + (priceB * tradingUnit);
+        
+        await storage.updateWalletBalances(walletA.id, newBaseBalanceA.toFixed(8), newQuoteBalanceA.toFixed(2));
+        await storage.updateWalletBalances(walletB.id, newBaseBalanceB.toFixed(8), newQuoteBalanceB.toFixed(2));
+      }
       
       // Broadcast to WebSocket clients
       broadcast({ type: 'arbitrage_executed', data: { ...log, tokenPair } });
 
-      res.json({ success: true, profit: estimatedProfit.toFixed(2) });
+      res.json({ 
+        success: true, 
+        totalProfit: estimatedProfit.toFixed(2),
+        txA,
+        txB
+      });
     } catch (error) {
       res.status(500).json({ message: 'Failed to execute arbitrage' });
     }

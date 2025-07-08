@@ -100,7 +100,42 @@ The application uses four main tables:
 
 Preferred communication style: Simple, everyday language.
 
-## Changelog
+## Recent Changes
 
-Changelog:
-- July 08, 2025. Initial setup
+- **July 08, 2025**: Initial setup with multi-token pair support
+- **July 08, 2025**: Implemented manual price scan mode replacing automatic polling
+  - Added scanner grid with "Scan Opportunities" button
+  - Created arbitrage detail panel for selected pairs
+  - Removed automatic price updates and WebSocket polling
+  - Added wallet-local transaction execution without cross-chain transfers
+  - Enhanced backend with `/api/scan/all` and `/api/arbitrage/detail` endpoints
+
+## Manual Scan Mode Features
+
+### Scanner Grid
+- Manual scan button for all 5 token pairs (BTC/USDT, ETH/USDT, CAKE/USDT, LINK/USDT, WBNB/USDT)
+- Responsive table showing prices, spreads, estimated profits, and profitability status
+- Profitable opportunities highlighted with green indicators
+- Select button enabled only for profitable pairs
+
+### Arbitrage Detail Panel
+- Appears when user selects a profitable pair from scanner
+- Shows dual wallet layout with real-time balances and prices
+- Displays arbitrage metrics: spread, drift, estimated profit
+- Execute button performs wallet-local transactions only
+- Transaction IDs generated for BUY (Wallet A) and SELL (Wallet B) operations
+
+### Execution Logic
+- BUY operation on PancakeSwap (Wallet A): Spend USDT, receive base token
+- SELL operation on QuickSwap (Wallet B): Spend base token, receive USDT
+- No cross-chain transfers or token bridging
+- Wallet balances updated locally after execution
+- All transactions logged to arbitrage history
+
+## API Endpoints
+
+- `GET /api/scan/all`: Returns price data and opportunities for all token pairs
+- `GET /api/arbitrage/detail?pair=xxx`: Detailed wallet and arbitrage information
+- `POST /api/arbitrage/execute`: Executes wallet-local buy/sell transactions
+- `GET /api/arbitrage/history?pair=xxx`: Transaction history per token pair
+- `GET /api/settings`: User configuration including profit thresholds

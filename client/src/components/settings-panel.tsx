@@ -75,10 +75,10 @@ export default function SettingsPanel({ tokenPair }: SettingsPanelProps) {
 
   // Initialize form data when settings are loaded
   useEffect(() => {
-    if (settings) {
+    if (allSettings) {
       setFormData(settings);
     }
-  }, [settings]);
+  }, [allSettings, tokenPair]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
