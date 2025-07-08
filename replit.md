@@ -157,6 +157,7 @@ Preferred communication style: Simple, everyday language.
   - **Enhanced Auto Execution Logging**: Extended database schema with walletA, walletB, buyPrice, sellPrice, profit, and txHash fields for complete transaction audit trail
   - **Dynamic Scan Interval Display**: Scanner now shows "Next scan in X seconds" using actual configured interval from settings
   - **Complete Database Migration**: Updated arbitrage_log table with new transaction tracking fields while maintaining backward compatibility
+  - **Live Countdown Timer**: Real-time countdown showing exact remaining seconds until next scan with proper singular/plural handling
 
 ## Manual Scan Mode Features
 

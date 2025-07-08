@@ -31,13 +31,14 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [lastScanTime, setLastScanTime] = useState<Date | null>(null);
+  const [remainingTime, setRemainingTime] = useState<number>(0);
   
   // Auto execution session tracking
   const sessionStart = useRef(Date.now());
   const autoExecCount = useRef(0);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const SCAN_INTERVAL = 5000; // 5 seconds
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: settings } = useQuery({
     queryKey: ["/api/settings"],
@@ -141,17 +142,37 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
     
     // Set up interval with configurable timing
     const scannerIntervalSec = parseInt(settings?.scannerIntervalSec || "5");
+    setRemainingTime(scannerIntervalSec);
+    
+    // Start countdown timer
+    countdownRef.current = setInterval(() => {
+      setRemainingTime(prev => {
+        if (prev <= 1) {
+          return scannerIntervalSec; // Reset countdown
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
     intervalRef.current = setInterval(() => {
       scanMutation.mutate();
+      setRemainingTime(scannerIntervalSec); // Reset countdown on each scan
     }, scannerIntervalSec * 1000);
   };
 
   const stopScanning = () => {
     setIsScanning(false);
     onScanningChange?.(false);
+    setRemainingTime(0);
+    
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
+    }
+    
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
     }
   };
 
@@ -163,11 +184,14 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
     }
   };
 
-  // Cleanup interval on unmount
+  // Cleanup intervals on unmount
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+      }
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
       }
     };
   }, []);
@@ -212,7 +236,7 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
               )}
               {isScanning && (
                 <span className="text-sm text-muted-foreground">
-                  Next scan in {settings?.scannerIntervalSec || '5'} seconds
+                  Next scan in {remainingTime} second{remainingTime !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
