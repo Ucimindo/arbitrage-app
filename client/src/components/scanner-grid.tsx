@@ -106,6 +106,10 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
     return tokenOptions.find(option => option.value === pair) || { label: pair.toUpperCase(), icon: '🪙' };
   };
 
+  const getQuoteSymbol = (pair: string) => {
+    return pair.split("_")[1].toUpperCase(); // e.g., btc_usdt → USDT
+  };
+
   const minProfitThreshold = parseFloat(settings?.[`minProfitThreshold_btc_usdt`] || '50');
   
   // Find the best spread for highlighting
@@ -203,6 +207,7 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
               <TableBody>
                 {scanResults.map((result) => {
                   const tokenInfo = getTokenInfo(result.pair);
+                  const quoteSymbol = getQuoteSymbol(result.pair);
                   const profit = parseFloat(result.estimatedProfit);
                   const spread = parseFloat(result.spread);
                   const isProfitable = profit >= minProfitThreshold;
@@ -232,20 +237,24 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
                           <span>{tokenInfo.label}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono">${result.priceA}</TableCell>
-                      <TableCell className="font-mono">${result.priceB}</TableCell>
+                      <TableCell className="font-mono">
+                        {result.priceA} <span className="text-xs text-muted-foreground">{quoteSymbol}</span>
+                      </TableCell>
+                      <TableCell className="font-mono">
+                        {result.priceB} <span className="text-xs text-muted-foreground">{quoteSymbol}</span>
+                      </TableCell>
                       <TableCell className={cn(
                         "font-mono",
                         isBestSpread && "text-yellow-600 dark:text-yellow-400 font-bold"
                       )}>
-                        ${result.spread}
+                        {result.spread} <span className="text-xs text-muted-foreground">{quoteSymbol}</span>
                         {isBestSpread && <span className="ml-1">⭐</span>}
                       </TableCell>
                       <TableCell className={cn(
                         "font-mono text-green-600",
                         isMostProfitable && "font-bold text-orange-600 dark:text-orange-400"
                       )}>
-                        ${result.estimatedProfit}
+                        {result.estimatedProfit} <span className="text-xs text-muted-foreground">{quoteSymbol}</span>
                         {isMostProfitable && <span className="ml-1">🔥</span>}
                       </TableCell>
                       <TableCell>

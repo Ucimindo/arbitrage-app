@@ -109,6 +109,11 @@ Preferred communication style: Simple, everyday language.
   - Removed automatic price updates and WebSocket polling
   - Added wallet-local transaction execution without cross-chain transfers
   - Enhanced backend with `/api/scan/all` and `/api/arbitrage/detail` endpoints
+- **July 08, 2025**: Refactored currency display system
+  - Replaced hardcoded "$" symbols with dynamic quote token suffixes
+  - Added token-aware display logic: btc_usdt → "USDT", eth_usdt → "USDT"
+  - Enhanced scanner grid and detail panel with quote symbol extraction
+  - Future-proofed for additional quote tokens (BUSD, DAI, etc.)
 
 ## Manual Scan Mode Features
 

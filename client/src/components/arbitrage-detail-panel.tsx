@@ -55,8 +55,8 @@ export default function ArbitrageDetailPanel({ tokenPair }: ArbitrageDetailProps
     onSuccess: (data) => {
       setExecutionStatus({ txA: data.txA, txB: data.txB });
       toast({
-        title: "Arbitrage Executed",
-        description: `Profit: $${data.totalProfit}`,
+        title: "Arbitrage Executed", 
+        description: `Profit: ${data.totalProfit} ${tokenPair.split("_")[1].toUpperCase()}`,
       });
       // Refresh wallet data
       queryClient.invalidateQueries({ queryKey: ["/api/arbitrage/detail", tokenPair] });
@@ -91,6 +91,7 @@ export default function ArbitrageDetailPanel({ tokenPair }: ArbitrageDetailProps
   const tokenInfo = tokenOptions.find(option => option.value === tokenPair);
   const baseSymbol = tokenInfo?.symbol || 'TOKEN';
   const baseIcon = tokenInfo?.icon || '🪙';
+  const quoteSymbol = tokenPair.split("_")[1].toUpperCase(); // e.g., btc_usdt → USDT
   const isProfitable = detail.profitable;
 
   const WalletCard = ({ wallet, title, chainColor }: {
@@ -115,9 +116,9 @@ export default function ArbitrageDetailPanel({ tokenPair }: ArbitrageDetailProps
           </div>
         </div>
         <div>
-          <div className="text-sm text-muted-foreground">USDT Balance</div>
+          <div className="text-sm text-muted-foreground">{quoteSymbol} Balance</div>
           <div className="text-lg font-mono text-foreground">
-            {parseFloat(wallet.quoteBalance).toFixed(2)}
+            {parseFloat(wallet.quoteBalance).toFixed(2)} <span className="text-xs text-muted-foreground">{quoteSymbol}</span>
           </div>
         </div>
       </div>
@@ -125,7 +126,7 @@ export default function ArbitrageDetailPanel({ tokenPair }: ArbitrageDetailProps
       <div className="space-y-2">
         <div className="flex justify-between">
           <span className="text-sm text-muted-foreground">Current Price:</span>
-          <span className="font-mono">${wallet.currentPrice}</span>
+          <span className="font-mono">{wallet.currentPrice} <span className="text-xs text-muted-foreground">{quoteSymbol}</span></span>
         </div>
         <div className="flex justify-between">
           <span className="text-sm text-muted-foreground">Gas Estimate:</span>
@@ -166,20 +167,22 @@ export default function ArbitrageDetailPanel({ tokenPair }: ArbitrageDetailProps
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-muted rounded-lg p-4 text-center">
             <div className="text-sm text-muted-foreground mb-1">Price Spread</div>
-            <div className="text-xl font-mono text-foreground">${detail.spread}</div>
+            <div className="text-xl font-mono text-foreground">
+              {detail.spread} <span className="text-sm text-muted-foreground">{quoteSymbol}</span>
+            </div>
           </div>
           <div className="bg-muted rounded-lg p-4 text-center">
             <div className="text-sm text-muted-foreground mb-1">Price Drift</div>
             <div className={`text-xl font-mono ${
               parseFloat(detail.drift) >= 0 ? 'text-green-500' : 'text-red-500'
             }`}>
-              {parseFloat(detail.drift) >= 0 ? '+' : ''}${detail.drift}
+              {parseFloat(detail.drift) >= 0 ? '+' : ''}{detail.drift} <span className="text-sm text-muted-foreground">{quoteSymbol}</span>
             </div>
           </div>
           <div className="bg-muted rounded-lg p-4 text-center">
             <div className="text-sm text-muted-foreground mb-1">Est. Profit (1 {baseSymbol})</div>
             <div className={`text-xl font-mono ${isProfitable ? 'text-green-500' : 'text-red-500'}`}>
-              ${detail.estimatedProfit}
+              {detail.estimatedProfit} <span className="text-sm text-muted-foreground">{quoteSymbol}</span>
             </div>
           </div>
         </div>
