@@ -1,0 +1,42 @@
+import { Button } from "@/components/ui/button";
+import { RefreshCw, Settings } from "lucide-react";
+import { useArbitrage } from "@/hooks/use-arbitrage";
+
+interface NavbarProps {
+  isConnected: boolean;
+}
+
+export default function Navbar({ isConnected }: NavbarProps) {
+  const { refetchAll } = useArbitrage();
+
+  return (
+    <nav className="bg-card border-b border-border px-6 py-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <h1 className="text-xl font-bold text-foreground">Dual Wallet Arbitrage</h1>
+          <div className="flex items-center space-x-2">
+            <span className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+            <span className="text-sm text-muted-foreground">
+              {isConnected ? 'Live' : 'Disconnected'}
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={refetchAll}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          <Button variant="outline" size="sm">
+            <Settings className="w-4 h-4 mr-2" />
+            Settings
+          </Button>
+        </div>
+      </div>
+    </nav>
+  );
+}
