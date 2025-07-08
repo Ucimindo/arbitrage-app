@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { RefreshCw, Play, Square } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { tokenOptions } from "./token-selector";
 import { cn } from "@/lib/utils";
@@ -23,9 +23,10 @@ interface ScanResult {
 interface ScannerGridProps {
   onSelectPair: (pair: string) => void;
   selectedPair?: string;
+  onScanningChange?: (isScanning: boolean) => void;
 }
 
-export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridProps) {
+export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChange }: ScannerGridProps) {
   const { toast } = useToast();
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [isScanning, setIsScanning] = useState(false);
@@ -124,8 +125,13 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
     return response.json();
   };
 
-  const startScanning = () => {
+  const startScanning = async () => {
+    // Load fresh settings from backend before starting
+    await queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+    
     setIsScanning(true);
+    onScanningChange?.(true);
+    
     // Reset session tracking
     sessionStart.current = Date.now();
     autoExecCount.current = 0;
@@ -142,6 +148,7 @@ export default function ScannerGrid({ onSelectPair, selectedPair }: ScannerGridP
 
   const stopScanning = () => {
     setIsScanning(false);
+    onScanningChange?.(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;

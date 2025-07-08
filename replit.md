@@ -143,6 +143,12 @@ Preferred communication style: Simple, everyday language.
   - Scanner automatically executes profitable opportunities when enabled
   - Transaction log shows [auto] tag for automated executions
   - Session protection prevents runaway auto execution loops
+- **July 08, 2025**: Enhanced settings consistency with scanner restart protection
+  - Added scanner state awareness to settings modal with visual warning alerts
+  - Settings changes apply only after scanner restart to prevent race conditions
+  - Fresh settings loaded from backend on each scanner start for consistency
+  - Yellow alert banner shows when scanner is running: "Changes will take effect after scanner restart"
+  - Prevents partial configuration updates during active scanning sessions
 
 ## Manual Scan Mode Features
 

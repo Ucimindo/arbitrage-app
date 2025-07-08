@@ -7,12 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  isScanning?: boolean;
 }
 
 interface Settings {
@@ -28,7 +31,7 @@ interface Settings {
   autoExecMaxPerSession: string;
 }
 
-export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+export default function SettingsModal({ isOpen, onClose, isScanning = false }: SettingsModalProps) {
   const { toast } = useToast();
 
   const { data: settings, isLoading } = useQuery({
@@ -89,10 +92,17 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       return response.json();
     },
     onSuccess: () => {
-      toast({
-        title: "Settings Updated",
-        description: "Your trading settings have been saved successfully.",
-      });
+      if (isScanning) {
+        toast({
+          title: "Settings Saved",
+          description: "Changes will take effect after scanner restart",
+        });
+      } else {
+        toast({
+          title: "Settings Updated", 
+          description: "Your trading settings have been saved successfully.",
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
       onClose();
     },
@@ -153,6 +163,15 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <span>Trading Settings</span>
           </DialogTitle>
         </DialogHeader>
+
+        {isScanning && (
+          <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20">
+            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+              Scanner is running. Changes will take effect after scanner restart.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8">

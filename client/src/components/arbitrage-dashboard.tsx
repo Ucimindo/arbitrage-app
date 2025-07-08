@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function ArbitrageDashboard() {
   const [selectedTokenPair, setSelectedTokenPair] = useState<string>('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const { isConnected } = useWebSocket();
   const { toast } = useToast();
 
@@ -41,6 +42,7 @@ export default function ArbitrageDashboard() {
         <ScannerGrid 
           onSelectPair={setSelectedTokenPair}
           selectedPair={selectedTokenPair}
+          onScanningChange={setIsScanning}
         />
 
         {/* Arbitrage Detail Panel (shown when pair is selected) */}
@@ -56,6 +58,7 @@ export default function ArbitrageDashboard() {
       <SettingsModal 
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        isScanning={isScanning}
       />
     </div>
   );
