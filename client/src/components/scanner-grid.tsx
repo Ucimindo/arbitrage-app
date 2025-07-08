@@ -127,37 +127,64 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
   };
 
   const startScanning = async () => {
-    // Load fresh settings from backend before starting
-    await queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
-    
-    setIsScanning(true);
-    onScanningChange?.(true);
-    
-    // Reset session tracking
-    sessionStart.current = Date.now();
-    autoExecCount.current = 0;
-    
-    // Immediate scan
-    scanMutation.mutate();
-    
-    // Set up interval with configurable timing
-    const scannerIntervalSec = parseInt(settings?.scannerIntervalSec || "5");
-    setRemainingTime(scannerIntervalSec);
-    
-    // Start countdown timer
-    countdownRef.current = setInterval(() => {
-      setRemainingTime(prev => {
-        if (prev <= 1) {
-          return scannerIntervalSec; // Reset countdown
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    
-    intervalRef.current = setInterval(() => {
+    try {
+      // Load fresh settings from backend before starting
+      await queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      
+      // Wait a moment for settings to load
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Re-fetch settings to ensure we have latest values
+      const currentSettings = queryClient.getQueryData(["/api/settings"]) as any;
+      const scannerIntervalSec = parseInt(currentSettings?.scannerIntervalSec || "5");
+      
+      // Safety check - ensure we have a valid interval
+      if (!scannerIntervalSec || scannerIntervalSec < 1 || scannerIntervalSec > 60) {
+        toast({
+          title: "Scanner Error",
+          description: "Invalid scanner interval setting. Please check your settings.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setIsScanning(true);
+      onScanningChange?.(true);
+      
+      // Reset session tracking
+      sessionStart.current = Date.now();
+      autoExecCount.current = 0;
+      
+      // Immediate scan
       scanMutation.mutate();
-      setRemainingTime(scannerIntervalSec); // Reset countdown on each scan
-    }, scannerIntervalSec * 1000);
+      
+      setRemainingTime(scannerIntervalSec);
+      
+      // Start countdown timer
+      countdownRef.current = setInterval(() => {
+        setRemainingTime(prev => {
+          if (prev <= 1) {
+            return scannerIntervalSec; // Reset countdown
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      intervalRef.current = setInterval(() => {
+        scanMutation.mutate();
+        setRemainingTime(scannerIntervalSec); // Reset countdown on each scan
+      }, scannerIntervalSec * 1000);
+      
+    } catch (error) {
+      console.error("Failed to start scanner:", error);
+      toast({
+        title: "Scanner Error",
+        description: "Failed to start scanner. Please try again.",
+        variant: "destructive",
+      });
+      setIsScanning(false);
+      onScanningChange?.(false);
+    }
   };
 
   const stopScanning = () => {
@@ -234,7 +261,7 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
                   Last scan: {lastScanTime.toLocaleTimeString()}
                 </span>
               )}
-              {isScanning && (
+              {isScanning && remainingTime > 0 && (
                 <span className="text-sm text-muted-foreground">
                   Next scan in {remainingTime} second{remainingTime !== 1 ? 's' : ''}
                 </span>
@@ -259,7 +286,7 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
             )}
             <Button 
               onClick={toggleScanning}
-              disabled={scanMutation.isPending}
+              disabled={scanMutation.isPending || !settings}
               className={isScanning 
                 ? "bg-red-600 hover:bg-red-700 text-white" 
                 : "bg-green-600 hover:bg-green-700 text-white"
@@ -270,10 +297,15 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
                   <Square className="w-4 h-4 mr-2" />
                   Stop Scanner
                 </>
-              ) : (
+              ) : settings ? (
                 <>
                   <Play className="w-4 h-4 mr-2" />
                   Start Scanner
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Loading...
                 </>
               )}
             </Button>
