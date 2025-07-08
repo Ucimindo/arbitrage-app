@@ -1,15 +1,32 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Settings } from "lucide-react";
 import { useArbitrage } from "@/hooks/use-arbitrage";
+import { cn } from "@/lib/utils";
 
 interface NavbarProps {
   isConnected: boolean;
   onOpenSettings: () => void;
+  onRefresh?: () => void;
 }
 
-export default function Navbar({ isConnected, onOpenSettings }: NavbarProps) {
+export default function Navbar({ isConnected, onOpenSettings, onRefresh }: NavbarProps) {
   const { refetchAll } = useArbitrage();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
+    if (onRefresh) {
+      onRefresh(); // Use dashboard's full refresh if provided
+    } else {
+      await refetchAll(); // Fallback to hook's refetch
+    }
+    
+    // Brief loading feedback
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
 
   return (
     <nav className="bg-card border-b border-border px-6 py-4">
@@ -28,10 +45,11 @@ export default function Navbar({ isConnected, onOpenSettings }: NavbarProps) {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={refetchAll}
+            onClick={handleRefresh}
+            disabled={isRefreshing}
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+            <RefreshCw className={cn("w-4 h-4 mr-2", isRefreshing && "animate-spin")} />
+            {isRefreshing ? "Refreshing..." : "Refresh"}
           </Button>
           <Button variant="outline" size="sm" onClick={onOpenSettings}>
             <Settings className="w-4 h-4 mr-2" />

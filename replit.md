@@ -125,6 +125,11 @@ Preferred communication style: Simple, everyday language.
   - Updated /api/scan/all and /api/arbitrage/detail endpoints for token-awareness
   - Enhanced profit calculations to work with any BASE/QUOTE combination
   - Future-ready for DAI, USDC, BUSD, and other quote tokens
+- **July 08, 2025**: Implemented full dashboard refresh functionality
+  - Added comprehensive refresh button in navbar with visual feedback
+  - Refresh clears selected token pair and invalidates all TanStack Query cache
+  - Added spinning animation and toast notification for user feedback
+  - Provides complete UI reset without browser reload
 
 ## Manual Scan Mode Features
 
