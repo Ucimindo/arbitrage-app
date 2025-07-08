@@ -432,7 +432,7 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
             </div>
             {isScanning && (
               <div className="text-blue-600 dark:text-blue-400">
-                Next scan in {SCAN_INTERVAL / 1000} seconds
+                Next scan in {remainingTime} second{remainingTime !== 1 ? 's' : ''}
               </div>
             )}
           </div>
