@@ -16,7 +16,9 @@ interface SettingsModalProps {
 }
 
 interface Settings {
-  minProfitThreshold: string;
+  thresholdMode: string; // "fixed" | "percent"
+  minProfitFixed: string;
+  minProfitPercent: string;
   slippageTolerance: string;
   maxPositionSize: string;
   autoExecute: string;
@@ -32,7 +34,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   });
 
   const [formData, setFormData] = useState<Settings>({
-    minProfitThreshold: "",
+    thresholdMode: "",
+    minProfitFixed: "",
+    minProfitPercent: "",
     slippageTolerance: "",
     maxPositionSize: "",
     autoExecute: "",
@@ -43,7 +47,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   useState(() => {
     if (settings) {
       setFormData({
-        minProfitThreshold: settings.minProfitThreshold || "50",
+        thresholdMode: settings.thresholdMode || "fixed",
+        minProfitFixed: settings.minProfitFixed || "50",
+        minProfitPercent: settings.minProfitPercent || "5",
         slippageTolerance: settings.slippageTolerance || "0.5",
         maxPositionSize: settings.maxPositionSize || "1000",
         autoExecute: settings.autoExecute || "false",
@@ -53,9 +59,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   });
 
   // Sync form data when settings change
-  if (settings && formData.minProfitThreshold === "") {
+  if (settings && formData.thresholdMode === "") {
     setFormData({
-      minProfitThreshold: settings.minProfitThreshold || "50",
+      thresholdMode: settings.thresholdMode || "fixed",
+      minProfitFixed: settings.minProfitFixed || "50",
+      minProfitPercent: settings.minProfitPercent || "5",
       slippageTolerance: settings.slippageTolerance || "0.5",
       maxPositionSize: settings.maxPositionSize || "1000",
       autoExecute: settings.autoExecute || "false",
@@ -65,10 +73,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const updateMutation = useMutation({
     mutationFn: async (data: Settings) => {
-      const promises = Object.entries(data).map(([key, value]) =>
-        apiRequest("POST", "/api/settings", { key, value })
-      );
-      await Promise.all(promises);
+      const response = await apiRequest("POST", "/api/settings", data);
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -100,6 +106,32 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     setFormData(prev => ({ ...prev, [key]: checked.toString() }));
   };
 
+  // Calculate derived values for display
+  const calculateMinProfitRequired = () => {
+    const mode = formData.thresholdMode;
+    const maxPosition = parseFloat(formData.maxPositionSize) || 1000;
+    const fixedThreshold = parseFloat(formData.minProfitFixed) || 50;
+    const percentThreshold = parseFloat(formData.minProfitPercent) || 5;
+    
+    // Estimated gas fees (BNB Chain + Polygon)
+    const estimatedGasFee = 0.85 + 0.05; // ~$0.90 total
+    
+    let rawThreshold = 0;
+    if (mode === "percent") {
+      rawThreshold = (maxPosition * percentThreshold) / 100;
+    } else {
+      rawThreshold = fixedThreshold;
+    }
+    
+    return {
+      rawThreshold: rawThreshold.toFixed(2),
+      gasEstimate: estimatedGasFee.toFixed(2),
+      netRequired: (rawThreshold + estimatedGasFee).toFixed(2)
+    };
+  };
+
+  const calculations = calculateMinProfitRequired();
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -123,22 +155,71 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <CardTitle className="text-lg">Risk Management</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Profit Threshold Mode Toggle */}
+                <div className="space-y-3">
+                  <Label>Profit Threshold Mode</Label>
+                  <div className="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="fixed-mode"
+                        name="thresholdMode"
+                        value="fixed"
+                        checked={formData.thresholdMode === "fixed"}
+                        onChange={(e) => handleInputChange('thresholdMode', e.target.value)}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="fixed-mode" className="text-sm font-medium">
+                        Use Fixed Profit (USDT)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="percent-mode"
+                        name="thresholdMode"
+                        value="percent"
+                        checked={formData.thresholdMode === "percent"}
+                        onChange={(e) => handleInputChange('thresholdMode', e.target.value)}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="percent-mode" className="text-sm font-medium">
+                        Use Percent Profit (%)
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Dynamic Profit Threshold Input */}
                   <div className="space-y-2">
-                    <Label htmlFor="minProfit">Minimum Profit Threshold</Label>
+                    <Label htmlFor="profitThreshold">
+                      {formData.thresholdMode === "fixed" 
+                        ? "Minimum Profit Threshold" 
+                        : "Minimum Profit Percentage"}
+                    </Label>
                     <div className="flex items-center space-x-2">
                       <Input
-                        id="minProfit"
+                        id="profitThreshold"
                         type="number"
-                        step="0.01"
-                        value={formData.minProfitThreshold}
-                        onChange={(e) => handleInputChange('minProfitThreshold', e.target.value)}
-                        placeholder="50.00"
+                        step={formData.thresholdMode === "fixed" ? "0.01" : "0.1"}
+                        value={formData.thresholdMode === "fixed" 
+                          ? formData.minProfitFixed 
+                          : formData.minProfitPercent}
+                        onChange={(e) => handleInputChange(
+                          formData.thresholdMode === "fixed" ? 'minProfitFixed' : 'minProfitPercent', 
+                          e.target.value
+                        )}
+                        placeholder={formData.thresholdMode === "fixed" ? "50.00" : "5.0"}
                       />
-                      <span className="text-sm text-muted-foreground">USDT</span>
+                      <span className="text-sm text-muted-foreground">
+                        {formData.thresholdMode === "fixed" ? "USDT" : "%"}
+                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Minimum profit required to execute arbitrage
+                      {formData.thresholdMode === "fixed" 
+                        ? "Fixed USDT amount required for execution"
+                        : "Percentage of position size required as profit"}
                     </p>
                   </div>
 
@@ -176,6 +257,33 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Maximum amount to trade in a single arbitrage
+                  </p>
+                </div>
+
+                {/* Calculated Values Display */}
+                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-3">
+                    Profit Calculations (including gas fees)
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Min Profit Required:</span>
+                      <span className="font-medium">{calculations.rawThreshold} USDT</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Estimated Gas Fee:</span>
+                      <span className="font-medium">{calculations.gasEstimate} USDT</span>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex justify-between text-base">
+                      <span className="font-medium">Min Net Profit Required:</span>
+                      <span className="font-bold text-blue-600 dark:text-blue-400">
+                        {calculations.netRequired} USDT
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Trades will only execute if estimated profit exceeds this net amount
                   </p>
                 </div>
               </CardContent>

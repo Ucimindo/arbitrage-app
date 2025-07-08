@@ -130,6 +130,12 @@ Preferred communication style: Simple, everyday language.
   - Refresh clears selected token pair and invalidates all TanStack Query cache
   - Added spinning animation and toast notification for user feedback
   - Provides complete UI reset without browser reload
+- **July 08, 2025**: Enhanced trading settings with flexible profit thresholds
+  - Added toggle between fixed profit (USDT) and percentage-based thresholds
+  - Integrated gas fee calculations (BNB Chain + Polygon estimates)
+  - Real-time profit calculations showing raw threshold + gas fees
+  - Updated backend logic to use new threshold mode for all arbitrage decisions
+  - Visual profit calculator in settings modal with net profit requirements
 
 ## Manual Scan Mode Features
 

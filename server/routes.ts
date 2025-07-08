@@ -45,7 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create default wallets for all token pairs
       await storage.initializeWallets();
 
-      // Create default settings for each token pair
+      // Create default settings for each token pair  
       const tokenPairs = ['btc_usdt', 'eth_usdt', 'cake_usdt', 'link_usdt', 'wbnb_usdt'];
       for (const pair of tokenPairs) {
         await storage.setSetting(`minProfitThreshold_${pair}`, '50');
@@ -53,6 +53,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.setSetting(`maxPositionSize_${pair}`, '1000');
       }
       
+      // Global settings
+      await storage.setSetting('thresholdMode', 'fixed');
+      await storage.setSetting('minProfitFixed', '50');
+      await storage.setSetting('minProfitPercent', '5');
+      await storage.setSetting('slippageTolerance', '0.5');
+      await storage.setSetting('maxPositionSize', '1000');
       await storage.setSetting('autoExecute', 'true');
       await storage.setSetting('soundAlerts', 'false');
 
@@ -141,9 +147,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const spread = Math.abs(pancakePrice - quickswapPrice);
         const estimatedProfit = spread * 0.85; // Minus fees
         
-        // Get minimum profit threshold for this pair and quote token
-        const minProfitSetting = await storage.getSetting(`minProfitThreshold_${pair}`);
-        const minProfit = parseFloat(minProfitSetting?.value || '50');
+        // Calculate minimum profit threshold based on mode
+        const thresholdMode = await storage.getSetting('thresholdMode');
+        const maxPositionSize = parseFloat((await storage.getSetting('maxPositionSize'))?.value || '1000');
+        const minProfitFixed = parseFloat((await storage.getSetting('minProfitFixed'))?.value || '50');
+        const minProfitPercent = parseFloat((await storage.getSetting('minProfitPercent'))?.value || '5');
+        
+        // Estimated gas fees (BNB Chain + Polygon)
+        const estimatedGasFee = 0.85 + 0.05; // ~$0.90 total
+        
+        let rawThreshold = 0;
+        if (thresholdMode?.value === "percent") {
+          rawThreshold = (maxPositionSize * minProfitPercent) / 100;
+        } else {
+          rawThreshold = minProfitFixed;
+        }
+        
+        const minProfit = rawThreshold + estimatedGasFee;
         
         results.push({
           pair,
@@ -184,9 +204,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const drift = pancakePrice - quickswapPrice;
       const estimatedProfit = spread * 0.85;
       
-      // Get minimum profit threshold for this specific quote token
-      const minProfitSetting = await storage.getSetting(`minProfitThreshold_${tokenPair}`);
-      const minProfit = parseFloat(minProfitSetting?.value || '50');
+      // Calculate minimum profit threshold based on mode
+      const thresholdMode = await storage.getSetting('thresholdMode');
+      const maxPositionSize = parseFloat((await storage.getSetting('maxPositionSize'))?.value || '1000');
+      const minProfitFixed = parseFloat((await storage.getSetting('minProfitFixed'))?.value || '50');
+      const minProfitPercent = parseFloat((await storage.getSetting('minProfitPercent'))?.value || '5');
+      
+      // Estimated gas fees (BNB Chain + Polygon)
+      const estimatedGasFee = 0.85 + 0.05; // ~$0.90 total
+      
+      let rawThreshold = 0;
+      if (thresholdMode?.value === "percent") {
+        rawThreshold = (maxPositionSize * minProfitPercent) / 100;
+      } else {
+        rawThreshold = minProfitFixed;
+      }
+      
+      const minProfit = rawThreshold + estimatedGasFee;
       
       const detail = {
         pair: tokenPair,
@@ -245,8 +279,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const feeEstimate = priceA * 0.001; // 0.1% fee estimate
       const estimatedProfit = Math.max(0, (spread * tradingUnit) - feeEstimate);
       
-      const minProfitSetting = await storage.getSetting(`minProfitThreshold_${tokenPair}`);
-      const minProfit = parseFloat(minProfitSetting?.value || '10');
+      // Calculate minimum profit threshold based on mode
+      const thresholdMode = await storage.getSetting('thresholdMode');
+      const maxPositionSizeSetting = await storage.getSetting('maxPositionSize');
+      const maxPositionSize = parseFloat(maxPositionSizeSetting?.value || '1000');
+      const minProfitFixed = parseFloat((await storage.getSetting('minProfitFixed'))?.value || '50');
+      const minProfitPercent = parseFloat((await storage.getSetting('minProfitPercent'))?.value || '5');
+      
+      // Estimated gas fees (BNB Chain + Polygon)
+      const estimatedGasFee = 0.85 + 0.05; // ~$0.90 total
+      
+      let rawThreshold = 0;
+      if (thresholdMode?.value === "percent") {
+        rawThreshold = (maxPositionSize * minProfitPercent) / 100;
+      } else {
+        rawThreshold = minProfitFixed;
+      }
+      
+      const minProfit = rawThreshold + estimatedGasFee;
       const profitable = estimatedProfit > minProfit;
 
       const status = {
@@ -290,12 +340,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const feeEstimate = priceA * 0.001;
       const estimatedProfit = Math.max(0, (spread * tradingUnit) - feeEstimate);
 
-      const minProfitSetting = await storage.getSetting(`minProfitThreshold_${tokenPair}`);
-      const minProfit = parseFloat(minProfitSetting?.value || '10');
+      // Calculate minimum profit threshold based on mode
+      const thresholdMode = await storage.getSetting('thresholdMode');
+      const maxPositionSizeSetting = await storage.getSetting('maxPositionSize');
+      const maxPositionSize = parseFloat(maxPositionSizeSetting?.value || '1000');
+      const minProfitFixed = parseFloat((await storage.getSetting('minProfitFixed'))?.value || '50');
+      const minProfitPercent = parseFloat((await storage.getSetting('minProfitPercent'))?.value || '5');
+      
+      // Estimated gas fees (BNB Chain + Polygon)
+      const estimatedGasFee = 0.85 + 0.05; // ~$0.90 total
+      
+      let rawThreshold = 0;
+      if (thresholdMode?.value === "percent") {
+        rawThreshold = (maxPositionSize * minProfitPercent) / 100;
+      } else {
+        rawThreshold = minProfitFixed;
+      }
+      
+      const minProfit = rawThreshold + estimatedGasFee;
       
       if (estimatedProfit < minProfit) {
         return res.status(400).json({ 
-          message: `Profit below minimum threshold (${minProfit} ${quoteSymbol})` 
+          message: `Profit below minimum threshold (${minProfit.toFixed(2)} ${quoteSymbol})` 
         });
       }
 
