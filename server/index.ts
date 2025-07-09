@@ -1,11 +1,20 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { pool } from "./db";
 
 const app = express();
+
+// CORS configuration for frontend authentication
+app.use(cors({
+  origin: "http://localhost:5173", // Vite frontend URL
+  credentials: true, // Allow cookies for session management
+}));
+
+// JSON body parser for login and settings forms
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
