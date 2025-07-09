@@ -21,21 +21,16 @@ export default function Login() {
     setError("");
 
     try {
-      const response = await apiRequest('/api/login', {
-        method: 'POST',
-        body: JSON.stringify({ username, password }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
+      const response = await apiRequest('POST', '/api/login', { username, password });
+      const data = await response.json();
+      
+      if (data.success) {
         setLocation("/"); // Redirect to home/dashboard
       } else {
-        const data = await response.json();
         setError(data.message || "Login failed");
       }
     } catch (error) {
+      console.error('Login error:', error);
       setError("Connection error. Please try again.");
     } finally {
       setIsLoading(false);
