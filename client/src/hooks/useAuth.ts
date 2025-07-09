@@ -40,10 +40,13 @@ export function useAuth() {
     }
   };
 
+  const isAuthenticated = !!user;
+  console.log('useAuth - user:', user, 'isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
+
   return {
     user,
     isLoading,
-    isAuthenticated: !!user,
+    isAuthenticated,
     logout,
     error,
   };

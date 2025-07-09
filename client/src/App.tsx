@@ -9,7 +9,9 @@ import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/useAuth";
 
 function ProtectedRoute({ component: Component, ...props }: any) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  console.log('ProtectedRoute - isLoading:', isLoading, 'isAuthenticated:', isAuthenticated, 'user:', user);
 
   if (isLoading) {
     return (
@@ -23,9 +25,11 @@ function ProtectedRoute({ component: Component, ...props }: any) {
   }
 
   if (!isAuthenticated) {
+    console.log('User not authenticated, showing login');
     return <Login />;
   }
 
+  console.log('User authenticated, showing dashboard');
   return <Component {...props} />;
 }
 
@@ -33,6 +37,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/test" component={Home} />
       <Route path="/" component={(props) => <ProtectedRoute component={Home} {...props} />} />
       <Route component={NotFound} />
     </Switch>

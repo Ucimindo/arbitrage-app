@@ -235,12 +235,12 @@ export default function ScannerGrid({ onSelectPair, selectedPair, onScanningChan
   
   // Find the best spread for highlighting
   const bestSpread = scanResults.length > 0 
-    ? Math.max(...scanResults.map(r => parseFloat(r.spread))) 
+    ? Math.max(...scanResults.map(r => parseFloat(r.spread) || 0)) 
     : 0;
   
   // Find the most profitable opportunity
   const mostProfitableAmount = scanResults.length > 0
-    ? Math.max(...scanResults.map(r => parseFloat(r.estimatedProfit)))
+    ? Math.max(...scanResults.map(r => parseFloat(r.estimatedProfit) || 0))
     : 0;
 
   return (
