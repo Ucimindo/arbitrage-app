@@ -28,8 +28,9 @@ export default function Login() {
       console.log('Login data:', data);
       
       if (data.success) {
-        console.log('Login successful, redirecting to home');
-        setLocation("/"); // Redirect to home/dashboard
+        console.log('Login successful, invalidating auth cache and redirecting to home');
+        // Invalidate the auth query to trigger a fresh check
+        window.location.reload(); // Force a full page reload to reset auth state
       } else {
         console.log('Login failed:', data.message);
         setError(data.message || "Login failed");

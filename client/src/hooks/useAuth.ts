@@ -13,12 +13,13 @@ export function useAuth() {
     queryKey: ['/api/auth/user'],
     queryFn: async () => {
       try {
-        const response = await apiRequest('/api/auth/user');
-        if (response.ok) {
-          return await response.json();
-        }
-        return null;
+        console.log('Checking authentication status...');
+        const response = await apiRequest('GET', '/api/auth/user');
+        const userData = await response.json();
+        console.log('Auth check result:', userData);
+        return userData;
       } catch (error) {
+        console.log('Auth check failed:', error);
         return null;
       }
     },
@@ -28,9 +29,7 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await apiRequest('/api/logout', {
-        method: 'POST',
-      });
+      await apiRequest('POST', '/api/logout');
       queryClient.clear();
       window.location.href = '/login';
     } catch (error) {
