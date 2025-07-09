@@ -34,8 +34,14 @@ export default function TransactionHistoryModal({ isOpen, onClose, tokenPair }: 
     queryKey: ["/api/arbitrage/history", tokenPair],
     queryFn: async () => {
       const url = tokenPair ? `/api/arbitrage/history?pair=${tokenPair}` : `/api/arbitrage/history`;
-      const response = await fetch(url);
-      return response.json();
+      const response = await fetch(url, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch transaction history');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
     enabled: isOpen,
   });
@@ -80,7 +86,7 @@ export default function TransactionHistoryModal({ isOpen, onClose, tokenPair }: 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions?.map((tx: TransactionEntry) => {
+                {Array.isArray(transactions) && transactions.map((tx: TransactionEntry) => {
                   const quoteSymbol = getQuoteSymbol(tx.tokenPair);
                   return (
                     <TableRow key={tx.id}>

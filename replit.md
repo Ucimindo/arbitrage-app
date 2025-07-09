@@ -172,6 +172,13 @@ Preferred communication style: Simple, everyday language.
   - **Frontend Integration**: Login component with form validation and useAuth hook for authentication state
   - **Default Credentials**: Admin user created with username "admin" and secure password for initial access
   - **Production Ready**: Complete authentication system essential for deployment with real wallet connections
+- **July 09, 2025**: Fixed critical authentication and connection issues for seamless user experience
+  - **API Connection Fix**: Resolved "net::ERR_CONNECTION_REFUSED" by switching from cross-origin to same-origin requests
+  - **Environment Configuration**: Updated API_BASE to use relative URLs instead of explicit localhost:5000
+  - **Authentication Flow**: Fixed useAuth hook to use correct API request format and proper session handling
+  - **Error Handling**: Enhanced transaction components with proper authentication and array validation
+  - **Component Stability**: Fixed "transactions?.map is not a function" error with proper type checking
+  - **Session Persistence**: Login now properly redirects to dashboard with full page reload for auth state reset
 
 ## Manual Scan Mode Features
 

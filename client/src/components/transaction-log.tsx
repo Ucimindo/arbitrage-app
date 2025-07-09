@@ -37,8 +37,14 @@ export default function TransactionLog({ tokenPair }: TransactionLogProps) {
   const { data: history, isLoading } = useQuery<ArbitrageLogEntry[]>({
     queryKey: ["/api/arbitrage/history", tokenPair],
     queryFn: async () => {
-      const response = await fetch(`/api/arbitrage/history?pair=${tokenPair}`);
-      return response.json();
+      const response = await fetch(`/api/arbitrage/history?pair=${tokenPair}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch transaction history');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
     refetchInterval: 10000, // Refresh every 10 seconds
   });
