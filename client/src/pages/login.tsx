@@ -21,17 +21,24 @@ export default function Login() {
     setError("");
 
     try {
+      console.log('Attempting login with:', { username, password: '***' });
       const response = await apiRequest('POST', '/api/login', { username, password });
+      console.log('Login response received:', response.status);
       const data = await response.json();
+      console.log('Login data:', data);
       
       if (data.success) {
+        console.log('Login successful, redirecting to home');
         setLocation("/"); // Redirect to home/dashboard
       } else {
+        console.log('Login failed:', data.message);
         setError(data.message || "Login failed");
       }
     } catch (error) {
-      console.error('Login error:', error);
-      setError("Connection error. Please try again.");
+      console.error('Login error details:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      setError(`Connection error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }

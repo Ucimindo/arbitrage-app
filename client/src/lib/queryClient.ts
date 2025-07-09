@@ -19,18 +19,26 @@ export async function apiRequest(
   console.log('Making API request:', method, fullUrl, data ? 'with data' : 'no data');
   
   try {
-    const res = await fetch(fullUrl, {
+    const requestConfig = {
       method,
       headers: data ? { "Content-Type": "application/json" } : {},
       body: data ? JSON.stringify(data) : undefined,
-      credentials: "include",
-    });
+      credentials: "include" as RequestCredentials,
+    };
+    
+    console.log('Request config:', requestConfig);
+    
+    const res = await fetch(fullUrl, requestConfig);
 
     console.log('API response status:', res.status);
+    console.log('API response headers:', Object.fromEntries(res.headers.entries()));
+    
     await throwIfResNotOk(res);
     return res;
   } catch (error) {
-    console.error('API request failed:', error);
+    console.error('API request failed with error:', error);
+    console.error('Error name:', error instanceof Error ? error.name : 'Unknown');
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
     throw error;
   }
 }

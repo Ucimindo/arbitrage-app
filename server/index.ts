@@ -10,8 +10,11 @@ const app = express();
 
 // CORS configuration for frontend authentication
 app.use(cors({
-  origin: "http://localhost:5173", // Vite frontend URL
+  origin: ["http://localhost:5173", "http://localhost:3000"], // Vite frontend URL
   credentials: true, // Allow cookies for session management
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  optionsSuccessStatus: 200
 }));
 
 // JSON body parser for login and settings forms
