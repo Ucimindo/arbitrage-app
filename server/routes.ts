@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { insertPriceSchema, insertArbitrageLogSchema, insertSettingSchema } from "@shared/schema";
+import { signerA, signerB, getWalletBalances, getNetworkInfo } from "./wallet";
 import { z } from "zod";
 import { format } from "date-fns";
 
@@ -39,6 +40,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   }
+
+  // Test wallet connection and balances
+  app.get('/api/wallet/info', async (req, res) => {
+    try {
+      const networkInfo = getNetworkInfo();
+      const balances = await getWalletBalances();
+      
+      res.json({
+        networks: networkInfo,
+        balances,
+        signers: {
+          walletA: {
+            address: signerA.address,
+            provider: signerA.provider?.connection?.url || 'Connected'
+          },
+          walletB: {
+            address: signerB.address, 
+            provider: signerB.provider?.connection?.url || 'Connected'
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Wallet info error:', error);
+      res.status(500).json({ 
+        message: 'Failed to get wallet info',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
 
   // Initialize the app
   app.post('/api/init', async (req, res) => {
