@@ -71,6 +71,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test router integration
+  app.get('/api/router/test', async (req, res) => {
+    try {
+      const chainId = parseInt(req.query.chainId as string) || 56;
+      const chainConfig = getChainConfig(chainId);
+      
+      if (!chainConfig) {
+        return res.status(400).json({ message: 'Unsupported chain ID' });
+      }
+
+      const isDevelopmentMode = process.env.NODE_ENV === 'development' && 
+                               (!process.env.PRIVATE_KEY_A || !process.env.PRIVATE_KEY_B);
+      
+      res.json({
+        chainId,
+        chainName: chainConfig.name,
+        routerAddress: chainConfig.routerAddress,
+        mode: isDevelopmentMode ? 'development (simulation)' : 'production (real transactions)',
+        supportedChains: getSupportedChains(),
+        ready: true
+      });
+    } catch (error) {
+      console.error('Router test error:', error);
+      res.status(500).json({ 
+        message: 'Failed to test router',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Initialize the app
   app.post('/api/init', async (req, res) => {
     try {
