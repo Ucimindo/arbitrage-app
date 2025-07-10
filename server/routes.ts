@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { insertPriceSchema, insertArbitrageLogSchema, insertSettingSchema } from "@shared/schema";
 import { signerA, signerB, getWalletBalances, getNetworkInfo } from "./wallet";
+import { executeSwap, getChainConfig, isSupportedChain, type SwapParams } from "./executor";
 import { z } from "zod";
 import { format } from "date-fns";
 
@@ -404,37 +405,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Simulate independent wallet executions
+      // Execute real swap transactions on both chains
       
-      // 1. Execute Wallet A transaction (BSC/PancakeSwap)
-      const generateTxHash = () => `0x${Math.random().toString(16).substring(2, 18)}${Date.now().toString(16)}`;
+      // Get chain configurations
+      const bscConfig = getChainConfig(56); // BSC
+      const polygonConfig = getChainConfig(137); // Polygon
       
-      const txHashA = generateTxHash();
-      const txHashB = generateTxHash();
+      if (!bscConfig || !polygonConfig) {
+        return res.status(500).json({ message: "Unsupported chain configuration" });
+      }
+
+      // Prepare swap parameters for both wallets
+      const swapAmountIn = BigInt(Math.floor(tradingUnit * 1e18)); // Convert to wei
       
-      // Simulate transaction execution with realistic success rate (95% success rate for demo)
-      const txASuccess = Math.random() > 0.05;
-      const txBSuccess = Math.random() > 0.05;
+      const swapParamsA: SwapParams = {
+        signer: signerA,
+        routerAddress: bscConfig.routerAddress,
+        tokenIn: "0x55d398326f99059ff775485246999027b3197955", // USDT on BSC
+        tokenOut: "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c", // BTCB on BSC
+        amountIn: swapAmountIn,
+        slippage: 0.5,
+        chainId: 56
+      };
+      
+      const swapParamsB: SwapParams = {
+        signer: signerB,
+        routerAddress: polygonConfig.routerAddress,
+        tokenIn: "0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6", // WBTC on Polygon
+        tokenOut: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f", // USDT on Polygon
+        amountIn: swapAmountIn,
+        slippage: 0.5,
+        chainId: 137
+      };
+
+      // Execute swaps simultaneously on both chains
+      const [resultA, resultB] = await Promise.all([
+        executeSwap(swapParamsA),
+        executeSwap(swapParamsB)
+      ]);
       
       const txA = {
-        status: txASuccess ? "success" : "failed",
+        status: resultA.status,
         network: "bsc",
-        hash: txHashA
+        hash: resultA.txHash
       };
       
       const txB = {
-        status: txBSuccess ? "success" : "failed", 
-        network: "polygon",
-        hash: txHashB
+        status: resultB.status,
+        network: "polygon", 
+        hash: resultB.txHash
       };
       
-      // Only proceed if both transactions succeeded
-      if (!txASuccess || !txBSuccess) {
+      // Check if both transactions succeeded
+      if (resultA.status === "failed" || resultB.status === "failed") {
         return res.status(500).json({ 
           message: "Failed to execute arbitrage",
           txA,
           txB,
-          totalProfit: 0
+          totalProfit: 0,
+          errors: {
+            walletA: resultA.error,
+            walletB: resultB.error
+          }
         });
       }
 
@@ -452,7 +484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         buyPrice: priceA.toFixed(8),
         sellPrice: priceB.toFixed(8),
         profit: estimatedProfit.toFixed(8),
-        txHash: `${txHashA}, ${txHashB}`
+        txHash: `${resultA.txHash}, ${resultB.txHash}`
       };
 
       const log = await storage.insertArbitrageLog(logData);

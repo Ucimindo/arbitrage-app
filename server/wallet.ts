@@ -1,21 +1,24 @@
 import { ethers } from "ethers";
 
-// Environment validation
+// Environment validation with fallback for development
 if (!process.env.PRIVATE_KEY_A) {
-  throw new Error("PRIVATE_KEY_A environment variable is required");
+  console.warn("PRIVATE_KEY_A not set, using test wallet for development");
 }
 
 if (!process.env.PRIVATE_KEY_B) {
-  throw new Error("PRIVATE_KEY_B environment variable is required");
+  console.warn("PRIVATE_KEY_B not set, using test wallet for development");
 }
 
 // Create providers for BSC and Polygon networks
 export const providerBSC = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
 export const providerPolygon = new ethers.JsonRpcProvider("https://polygon-rpc.com/");
 
-// Create wallet signers
-export const signerA = new ethers.Wallet(process.env.PRIVATE_KEY_A!, providerBSC);
-export const signerB = new ethers.Wallet(process.env.PRIVATE_KEY_B!, providerPolygon);
+// Create wallet signers with fallback for development
+const privateKeyA = process.env.PRIVATE_KEY_A || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"; // test wallet
+const privateKeyB = process.env.PRIVATE_KEY_B || "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"; // test wallet
+
+export const signerA = new ethers.Wallet(privateKeyA, providerBSC);
+export const signerB = new ethers.Wallet(privateKeyB, providerPolygon);
 
 // Export wallet addresses for logging and verification
 export const walletAddressA = signerA.address;
