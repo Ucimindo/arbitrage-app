@@ -374,9 +374,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Generate simulated transaction hash
-      const txHash = `0x${Math.random().toString(16).substring(2, 18)}${Date.now().toString(16)}`;
+      // Simulate independent wallet executions
+      
+      // 1. Execute Wallet A transaction (BSC/PancakeSwap)
+      const generateTxHash = () => `0x${Math.random().toString(16).substring(2, 18)}${Date.now().toString(16)}`;
+      
+      const txHashA = generateTxHash();
+      const txHashB = generateTxHash();
+      
+      // Simulate transaction execution with realistic success rate (95% success rate for demo)
+      const txASuccess = Math.random() > 0.05;
+      const txBSuccess = Math.random() > 0.05;
+      
+      const txA = {
+        status: txASuccess ? "success" : "failed",
+        network: "bsc",
+        hash: txHashA
+      };
+      
+      const txB = {
+        status: txBSuccess ? "success" : "failed", 
+        network: "polygon",
+        hash: txHashB
+      };
+      
+      // Only proceed if both transactions succeeded
+      if (!txASuccess || !txBSuccess) {
+        return res.status(500).json({ 
+          message: "Failed to execute arbitrage",
+          txA,
+          txB,
+          totalProfit: 0
+        });
+      }
 
+      // Log the successful arbitrage execution
       const logData = {
         tokenPair,
         priceA: priceA.toFixed(8),
@@ -390,12 +422,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         buyPrice: priceA.toFixed(8),
         sellPrice: priceB.toFixed(8),
         profit: estimatedProfit.toFixed(8),
-        txHash
+        txHash: `${txHashA}, ${txHashB}`
       };
 
       const log = await storage.insertArbitrageLog(logData);
       
-      // Simulate wallet balance updates
+      // Update wallet balances after successful execution
       const walletA = await storage.getWalletByDex('pancake', tokenPair);
       const walletB = await storage.getWalletByDex('quickswap', tokenPair);
       
@@ -415,11 +447,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Broadcast to WebSocket clients
       broadcast({ type: 'arbitrage_executed', data: { ...log, tokenPair } });
 
+      // Return the exact JSON structure requested
       res.json({ 
-        success: true, 
-        totalProfit: estimatedProfit.toFixed(2),
         txA,
-        txB
+        txB,
+        totalProfit: parseFloat(estimatedProfit.toFixed(2))
       });
     } catch (error) {
       res.status(500).json({ message: 'Failed to execute arbitrage' });
