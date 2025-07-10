@@ -1,7 +1,9 @@
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ArbitrageStatusData } from "@/lib/types";
 import { tokenOptions } from "./token-selector";
@@ -13,27 +15,43 @@ interface ArbitrageStatusProps {
 
 export default function ArbitrageStatus({ arbitrageStatus, tokenPair }: ArbitrageStatusProps) {
   const { toast } = useToast();
+  const [executionResult, setExecutionResult] = useState<any>(null);
   const selectedToken = tokenOptions.find(option => option.value === tokenPair);
   const baseSymbol = selectedToken?.symbol || 'TOKEN';
   const baseIcon = selectedToken?.icon || '🪙';
+  const quoteSymbol = tokenPair.split("_")[1].toUpperCase();
 
-  const handleExecuteArbitrage = async () => {
-    try {
-      const response = await apiRequest("POST", "/api/arbitrage/execute", { tokenPair });
-      const result = await response.json();
-      
+  const executeMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/arbitrage/execute", { 
+        tokenPair, 
+        executionType: "manual" 
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setExecutionResult(data);
       toast({
         title: "Arbitrage Executed",
-        description: `Profit: $${result.profit}`,
+        description: `Profit: $${data.totalProfit} ${quoteSymbol}`,
       });
-    } catch (error) {
+      // Refresh relevant queries
+      queryClient.invalidateQueries({ queryKey: ["/api/arbitrage/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/arbitrage/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wallets"] });
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.message?.includes("threshold") 
+        ? error.message 
+        : "Failed to execute arbitrage";
+      
       toast({
         title: "Execution Failed",
-        description: "Failed to execute arbitrage",
+        description: errorMessage,
         variant: "destructive",
       });
-    }
-  };
+    },
+  });
 
   if (!arbitrageStatus) {
     return (
@@ -94,11 +112,44 @@ export default function ArbitrageStatus({ arbitrageStatus, tokenPair }: Arbitrag
         
         <Button 
           className={`w-full ${isProfitable ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 cursor-not-allowed'} text-white font-bold py-4 text-lg`}
-          onClick={handleExecuteArbitrage}
-          disabled={!isProfitable}
+          onClick={() => executeMutation.mutate()}
+          disabled={!isProfitable || executeMutation.isPending}
         >
-          Execute Arbitrage
+          {executeMutation.isPending ? "Executing..." : "Execute Arbitrage"}
         </Button>
+
+        {/* Execution Result Display */}
+        {executionResult && (
+          <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+            <CardContent className="p-4">
+              <div className="text-center mb-3">
+                <div className="text-green-600 dark:text-green-400 font-semibold">
+                  ✅ Arbitrage Executed Successfully
+                </div>
+                <div className="text-2xl font-mono text-green-700 dark:text-green-300">
+                  Profit: ${executionResult.totalProfit} {quoteSymbol}
+                </div>
+              </div>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">BSC Transaction:</span>
+                  <span className="font-mono text-xs">
+                    {executionResult.txA?.status === "success" ? "✅" : "❌"} 
+                    {executionResult.txA?.hash?.slice(0, 10)}...
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Polygon Transaction:</span>
+                  <span className="font-mono text-xs">
+                    {executionResult.txB?.status === "success" ? "✅" : "❌"} 
+                    {executionResult.txB?.hash?.slice(0, 10)}...
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </CardContent>
     </Card>
   );

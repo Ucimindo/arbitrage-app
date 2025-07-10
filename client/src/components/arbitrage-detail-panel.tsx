@@ -49,23 +49,32 @@ export default function ArbitrageDetailPanel({ tokenPair }: ArbitrageDetailProps
 
   const executeMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/arbitrage/execute", { pair: tokenPair });
+      const response = await apiRequest("POST", "/api/arbitrage/execute", { 
+        tokenPair, 
+        executionType: "manual" 
+      });
       return response.json();
     },
     onSuccess: (data) => {
-      setExecutionStatus({ txA: data.txA, txB: data.txB });
+      setExecutionStatus({ txA: data.txA?.hash, txB: data.txB?.hash });
       toast({
         title: "Arbitrage Executed", 
-        description: `Profit: ${data.totalProfit} ${tokenPair.split("_")[1].toUpperCase()}`,
+        description: `Profit: $${data.totalProfit} ${tokenPair.split("_")[1].toUpperCase()}`,
       });
       // Refresh wallet data
       queryClient.invalidateQueries({ queryKey: ["/api/arbitrage/detail", tokenPair] });
       queryClient.invalidateQueries({ queryKey: ["/api/arbitrage/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/arbitrage/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wallets"] });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message?.includes("threshold") 
+        ? error.message 
+        : "Failed to execute arbitrage";
+      
       toast({
         title: "Execution Failed",
-        description: "Failed to execute arbitrage",
+        description: errorMessage,
         variant: "destructive",
       });
     },
