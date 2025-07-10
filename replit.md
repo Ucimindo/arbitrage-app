@@ -100,6 +100,32 @@ The application uses four main tables:
 
 Preferred communication style: Simple, everyday language.
 
+## Version History
+
+### Version 0.1.1 - Initial Development (July 10, 2025)
+**Stable baseline version without authentication - all core features functional**
+
+Core Features Implemented:
+- ✅ Real-time arbitrage monitoring between PancakeSwap (BNB Chain) and QuickSwap (Polygon)
+- ✅ Multi-token pair support (BTC/USDT, ETH/USDT, CAKE/USDT, LINK/USDT, WBNB/USDT)
+- ✅ Manual price scanning with automatic scanner mode (5-second intervals)
+- ✅ Dual wallet management with real-time balance tracking
+- ✅ Flexible profit threshold system (fixed USDT amounts or percentage-based)
+- ✅ Automated execution system with session controls and limits
+- ✅ Comprehensive transaction logging with execution type tracking
+- ✅ Transaction history export (CSV/JSON formats)
+- ✅ WebSocket real-time updates and responsive UI
+- ✅ Settings configuration with scanner restart protection
+
+Technical Architecture:
+- Frontend: React 18 + Vite + TailwindCSS + shadcn/ui components
+- Backend: Express.js + TypeScript + WebSocket server
+- Database: PostgreSQL + Drizzle ORM with 4 main tables
+- No authentication system (removed for simplicity)
+- RESTful API with 12+ endpoints for complete functionality
+
+This version represents a fully functional arbitrage monitoring platform ready for development and testing.
+
 ## Recent Changes
 
 - **July 08, 2025**: Initial setup with multi-token pair support
@@ -186,6 +212,11 @@ Preferred communication style: Simple, everyday language.
   - **useAuth Stub**: Replaced complex auth hook with simple stub that returns authenticated state
   - **Session Cleanup**: Removed express-session and all session-related middleware
   - **Database Optimization**: Removed authentication tables and session storage dependencies
+- **July 10, 2025**: Finalized version 0.1.1 as stable initial development baseline
+  - **Version Milestone**: Established v0.1.1 as reference point for all core functionality
+  - **Clean Navbar**: Removed final authentication elements from user interface
+  - **Stable State**: All arbitrage features working without authentication barriers
+  - **Documentation**: Updated replit.md with comprehensive version history and feature list
 
 ## Manual Scan Mode Features
 
