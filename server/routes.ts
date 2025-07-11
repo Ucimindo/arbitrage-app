@@ -4,7 +4,16 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { insertPriceSchema, insertArbitrageLogSchema, insertSettingSchema } from "@shared/schema";
 import { signerA, signerB, getWalletBalances, getNetworkInfo } from "./wallet";
-import { executeSwap, getChainConfig, isSupportedChain, type SwapParams } from "./executor";
+import { executeSwap, getChainConfig, isSupportedChain as isExecutorSupportedChain, getSupportedChains as getExecutorSupportedChains, type SwapParams } from "./executor";
+import { 
+  getPriceFromRouter, 
+  getTokenPairPrice, 
+  getTokenAddress, 
+  CHAIN_CONFIG as PRICE_CHAIN_CONFIG,
+  isSupportedChain as isPriceSupportedChain,
+  getSupportedChains as getPriceSupportedChains,
+  type PriceParams 
+} from "./price";
 import { z } from "zod";
 import { format } from "date-fns";
 
@@ -89,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         chainName: chainConfig.name,
         routerAddress: chainConfig.routerAddress,
         mode: isDevelopmentMode ? 'development (simulation)' : 'production (real transactions)',
-        supportedChains: getSupportedChains(),
+        supportedChains: getExecutorSupportedChains(),
         ready: true
       });
     } catch (error) {
@@ -97,6 +106,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: 'Failed to test router',
         error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Real-time price fetching from DEX routers
+  app.get('/api/price', async (req, res) => {
+    try {
+      const { chainId, tokenIn, tokenOut, amountIn } = req.query;
+      
+      if (!chainId || !tokenIn || !tokenOut) {
+        return res.status(400).json({ 
+          error: "Missing required parameters: chainId, tokenIn, tokenOut" 
+        });
+      }
+
+      const chainIdNum = parseInt(chainId as string);
+      const config = PRICE_CHAIN_CONFIG[chainIdNum];
+      
+      if (!config) {
+        return res.status(400).json({ 
+          error: `Unsupported chain ID: ${chainIdNum}`,
+          supportedChains: Object.keys(PRICE_CHAIN_CONFIG).map(Number)
+        });
+      }
+
+      const amountInBigInt = amountIn 
+        ? BigInt(amountIn as string) 
+        : BigInt("1000000000000000000"); // Default to 1 token
+
+      const price = await getPriceFromRouter({
+        provider: config.provider,
+        routerAddress: config.router,
+        tokenIn: tokenIn as string,
+        tokenOut: tokenOut as string,
+        amountIn: amountInBigInt,
+      });
+
+      res.json({
+        chainId: chainIdNum,
+        chainName: config.name,
+        router: config.router,
+        tokenIn: tokenIn as string,
+        tokenOut: tokenOut as string,
+        amountIn: amountInBigInt.toString(),
+        amountOut: price.toString(),
+        price: (Number(price) / Number(amountInBigInt)).toFixed(8),
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Price fetching error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch price from router',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Get token pair price from specific chain
+  app.get('/api/price/pair', async (req, res) => {
+    try {
+      const { tokenPair, chainId, amountIn } = req.query;
+      
+      if (!tokenPair || !chainId) {
+        return res.status(400).json({ 
+          error: "Missing required parameters: tokenPair, chainId" 
+        });
+      }
+
+      const chainIdNum = parseInt(chainId as string);
+      const amountInBigInt = amountIn ? BigInt(amountIn as string) : undefined;
+
+      const priceData = await getTokenPairPrice(
+        tokenPair as string, 
+        chainIdNum, 
+        amountInBigInt
+      );
+
+      res.json({
+        ...priceData,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Token pair price error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch token pair price',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Get prices for all supported chains for a token pair
+  app.get('/api/price/compare', async (req, res) => {
+    try {
+      const { tokenPair } = req.query;
+      
+      if (!tokenPair) {
+        return res.status(400).json({ 
+          error: "Missing required parameter: tokenPair" 
+        });
+      }
+
+      const supportedChains = Object.keys(PRICE_CHAIN_CONFIG).map(Number);
+      const prices = await Promise.allSettled(
+        supportedChains.map(async (chainId) => {
+          const data = await getTokenPairPrice(tokenPair as string, chainId);
+          return { chainId, ...data };
+        })
+      );
+
+      const results = prices.map((result, index) => {
+        const chainId = supportedChains[index];
+        if (result.status === 'fulfilled') {
+          return result.value;
+        } else {
+          return {
+            chainId,
+            chainName: PRICE_CHAIN_CONFIG[chainId]?.name || 'Unknown',
+            error: result.reason instanceof Error ? result.reason.message : 'Unknown error'
+          };
+        }
+      });
+
+      res.json({
+        tokenPair: tokenPair as string,
+        prices: results,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Price comparison error:', error);
+      res.status(500).json({ 
+        error: 'Failed to compare prices',
+        message: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });

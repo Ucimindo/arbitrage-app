@@ -1,0 +1,77 @@
+
+Hi Replit, let's implement real-time token price fetching from DEX routers using UniswapV2-compatible contracts.
+
+Goal:
+Add a new backend endpoint to fetch price data using `getAmountsOut()` from each supported router (e.g., PancakeSwap, QuickSwap).
+
+Steps:
+
+1. In `server/price.ts`, create a function `getPriceFromRouter`:
+```ts
+import { ethers } from "ethers";
+import { UNISWAP_V2_ROUTER_ABI } from "./abis/uniswapV2Router";
+
+type PriceParams = {
+  provider: ethers.JsonRpcProvider;
+  routerAddress: string;
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: bigint;
+};
+
+export async function getPriceFromRouter({
+  provider,
+  routerAddress,
+  tokenIn,
+  tokenOut,
+  amountIn,
+}: PriceParams): Promise<bigint> {
+  const router = new ethers.Contract(routerAddress, UNISWAP_V2_ROUTER_ABI, provider);
+  const path = [tokenIn, tokenOut];
+  const amountsOut = await router.getAmountsOut(amountIn, path);
+  return amountsOut[1]; // tokenOut amount
+}
+```
+
+2. Create a new API route in `server/routes.ts`:
+```ts
+router.get("/api/price", async (req, res) => {
+  const { chainId, tokenIn, tokenOut, amountIn } = req.query;
+  const config = CHAIN_CONFIG[chainId];
+  if (!config) return res.status(400).json({ error: "Unsupported chain" });
+
+  const price = await getPriceFromRouter({
+    provider: config.provider,
+    routerAddress: config.router,
+    tokenIn,
+    tokenOut,
+    amountIn: BigInt(amountIn),
+  });
+
+  res.json({ tokenIn, tokenOut, amountIn, price });
+});
+```
+
+3. Add CHAIN_CONFIG if not already defined in one place:
+```ts
+export const CHAIN_CONFIG = {
+  56: {
+    name: "BSC",
+    provider: new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/"),
+    router: "0x10ED43C718714eb63d5aA57B78B54704E256024E", // Pancake
+  },
+  137: {
+    name: "Polygon",
+    provider: new ethers.JsonRpcProvider("https://polygon-rpc.com"),
+    router: "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff", // QuickSwap
+  },
+};
+```
+
+4. Test with curl:
+```
+curl "http://localhost:5000/api/price?chainId=56&tokenIn=0x...&tokenOut=0x...&amountIn=1000000000000000000"
+```
+
+This will return the amount of tokenOut for a given tokenIn via router price.
+Let me know once it's working — we'll then connect it to the scanner + frontend.

@@ -231,6 +231,14 @@ This version represents a fully functional arbitrage monitoring platform ready f
   - **Development/Production Mode**: Smart detection switches between simulation and real blockchain calls
   - **Comprehensive Error Handling**: Detailed error parsing for insufficient funds, slippage, deadlines
   - **ABI Integration**: Added Uniswap V2 Router and ERC20 contract ABIs for real DEX interactions
+- **July 11, 2025**: Implemented real-time token price fetching from DEX routers using UniswapV2-compatible contracts
+  - **Real Price API**: Created /api/price endpoint fetching live prices using getAmountsOut() from PancakeSwap/QuickSwap routers
+  - **Token Pair Support**: Added /api/price/pair endpoint with automatic token mapping (BTC→BTCB/WBTC, ETH→ETH/WETH)
+  - **Multi-Chain Comparison**: Built /api/price/compare endpoint comparing prices across BSC and Polygon simultaneously
+  - **Chain Configuration**: Comprehensive CHAIN_CONFIG with provider URLs, router addresses, and token contract mappings
+  - **Live Data Integration**: Real price data from blockchain (BTC/USDT ~$55,954) replacing simulated prices
+  - **Error Handling**: Robust error handling for unsupported chains, missing tokens, and network failures
+  - **Modular Architecture**: Separated price fetching logic in server/price.ts for easy extension to additional chains
 
 ## Manual Scan Mode Features
 
